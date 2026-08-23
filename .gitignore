@@ -1,0 +1,7 @@
+.env
+config.yaml
+sent.log
+attachments/
+.venv/
+__pycache__/
+*.pyc
