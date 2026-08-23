@@ -1,5 +1,6 @@
 .env
 config.yaml
+config.yaml.bak
 sent.log
 attachments/
 .venv/
