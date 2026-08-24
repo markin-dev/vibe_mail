@@ -1,116 +1,100 @@
 # AGENTS.md — vibe_mail
 
-Путеводитель для AI-агента по проекту **vibe_mail**: утилита для массовой рассылки
-писем с индивидуальными вложениями. Список получателей и вложений берётся из
-YAML-конфига, отправка идёт через SMTP.
+Путеводитель для AI-агента по проекту **vibe_mail**.
 
-> Проект на **Python 3** (стандартная библиотека + PyYAML). Правила из глобального
-> `CLAUDE.md`, касающиеся TypeScript/Vue/Composables, к этому репозиторию не
-> относятся — здесь применяются только общепроектные принципы (см. ниже).
+> Проект на **Python 3** (FastAPI + SQLAlchemy + PyYAML). Глобальные правила из
+> `~/.claude/CLAUDE.md`, касающиеся TypeScript/Vue/Composables, к этому
+> репозиторию не относятся — применяются только общепроектные принципы.
 
 > **Память проекта** (решения, прогресс реализации и контекст сессий) хранится в
 > `PROJECT_MEMORY.md` в этом же репозитории — коммить её вместе с кодом и обновляй
 > при значимых изменениях.
 
-## Что внутри
+## Что это
+HTTP-API сервис массовой рассылки писем с индивидуальными вложениями. Клиент
+(позже — фронтенд) создаёт кампании, добавляет получателей и вложения, запускает
+рассылку; отправка идёт в фоне, прогресс виден по статусам в БД.
 
-| Файл | Назначение |
-|---|---|
-| `send_mail.py` | Основная утилита: загрузка конфига/`.env`, валидация, сборка и отправка писем, ретраи, журнал возобновления. |
-| `import_csv.py` | Вспомогательный скрипт: собирает секцию `recipients` из CSV `имя,email,файл` и вписывает её в `config.yaml`. Переиспользует `EMAIL_RE` из `send_mail.py`. |
-| `config.example.yaml` | Пример конфига (с комментариями). Копируется в `config.yaml`. |
-| `.env.example` | Пример `.env` с `SMTP_PASSWORD`. |
-| `requirements.txt` | `PyYAML` (обязателен), `python-dotenv` (опционален — свой парсер `.env` уже есть в `send_mail.py`). |
+## Стек и конвенции
+- **FastAPI** + **Uvicorn** (`uvicorn[standard]`); документация Swagger на `/docs`.
+- **SQLAlchemy 2.x** (sync) + **SQLite** (`vibe_mail.db`, gitignored).
+- **pydantic-settings** — конфиг из `.env`; **python-multipart** — загрузка файлов.
+- **Pipenv**: `Pipfile` + `Pipfile.lock` — источник зависимостей (бывший
+  `requirements.txt` удалён). Локальный venv в `.venv/` (через
+  `PIPENV_VENV_IN_PROJECT=1`, gitignored).
+- Язык комментариев и сообщений — **русский**.
+- Тестов **нет** (пользователь явно отменил).
+- Правила глобального `CLAUDE.md` про TS/Vue не применять.
 
-`config.yaml`, `.env`, `sent.log`, папка `attachments/` и `config.yaml.bak` —
-в `.gitignore`, в репозиторий не попадают.
-
-## Быстрый старт
-
-```bash
-cp config.example.yaml config.yaml
-cp .env.example .env        # вписать SMTP_PASSWORD
-mkdir -p attachments        # положить файлы вложений
-python3 send_mail.py --dry-run
+## Структура (реализовано)
+```
+app/
+  main.py            # FastAPI app + lifespan (create_all, старт/стоп воркера)
+  __main__.py        # python -m app -> uvicorn.run("app.main:app", ...)
+  core/              # config.py (Settings), constants.py (EMAIL_RE), logging.py
+  db/                # base.py (Base), session.py (engine, get_db), models.py
+  schemas/           # campaign.py, recipient.py (pydantic-модели)
+  services/          # mail_sender.py (MailSender), recipient_service.py,
+                     # campaign_service.py, worker.py
+  api/               # deps.py, campaigns.py, recipients.py, attachments.py, health.py
+Makefile             # make dev / make run / make install
+Pipfile / Pipfile.lock
+.env.example         # SMTP_*, DATABASE_URL, ATTACHMENTS_DIR
+PROJECT_MEMORY.md    # журнал решений и прогресса
 ```
 
-Пароль SMTP берётся из `SMTP_PASSWORD` (переменная окружения имеет приоритет над
-`.env`). Для Gmail/Яндекса нужен **пароль приложения**, а не основной пароль.
-
-## Ключевые инварианты и поведение
-
-Эти правила критичны — при изменении кода сохраняй их:
-
-- **Валидация до отправки.** Адреса (синтаксис + дубликаты), наличие/читаемость
-  каждого файла и суммарный размер вложений на письмо (лимит 25 МБ с учётом ~1.37×
-  оверхеда base64). При любой ошибке выводится полный список проблем и ничего не
-  отправляется.
-- **Возобновление.** Каждая успешная отправка сразу дописывается в `sent.log`
-  (`время<TAB>email<TAB>OK`). Повторный запуск пропускает эти адреса (флаг
-  `--no-resume` отключает). Это защита от дублей при прерывании.
-- **Ретраи.** Временные ошибки (4xx, обрыв, таймаут) — до 3 попыток с паузой
-  2/4/8 с и переподключением. Постоянные (5xx, отказ получателя/отправителя) —
-  адрес помечается failed, рассылка продолжается. Код возврата `1`, если были
-  ошибки.
-- **Относительные пути** (`attachments_dir`, путь `sent.log`) резолвятся относительно
-  директории конфига (`base_dir = Path(args.config).resolve().parent`). Запускать
-  удобнее из корня проекта.
-- **Логирование** через модуль `logging`, не через `print` (кроме `import_csv.py`,
-  который пишет сводку/проблемы в `stderr` намеренно).
-
-## Конфиг (`config.yaml`)
-
-Формат целиком в `config.example.yaml`. Кратко:
-
-- `smtp`: `host`, `port`, `user`, опционально `use_tls` (для 587) / `use_ssl` (для 465).
-- Общие для всех: `subject`, `body` (и опциональный `body_html`).
-- `recipients`: список, у каждого свой `email`, опционально `name`, и `attachments`
-  (список путей относительно `attachments_dir`). Пустой `attachments: []` — письмо
-  без вложений (допустимо).
-
-## CLI-флаги
-
-| Флаг | Что делает |
-|---|---|
-| `--config PATH` | путь к конфигу (по умолчанию `config.yaml`) |
-| `--env PATH` | файл с `SMTP_PASSWORD` (по умолчанию `.env`) |
-| `--dry-run` | показать, что будет отправлено; SMTP не открывается |
-| `--delay N` | пауза между письмами, сек (перекрывает конфиг) |
-| `--log PATH` | журнал отправленных (по умолчанию `sent.log`) |
-| `--no-resume` | не пропускать адреса из журнала |
-| `--limit N` | отправить не больше N писем (боевой тест) |
-| `--only EMAIL` | отправить только одному адресу |
-| `-v` | подробный лог, включая диалог с SMTP |
-
-`import_csv.py`: `csv_path` (позиционный), `--config`, `--attachments-dir`,
-`--dry-run`, `--encoding` (по умолчанию `utf-8-sig`). Без `--dry-run` секция
-`recipients` в `config.yaml` перезаписывается (выше — без изменений), рядом кладётся
-`config.yaml.bak`. Строки с одинаковым email объединяются в одного получателя.
-
-## Стиль кода (наблюдаемые конвенции)
-
-- **Функциональный стиль**: маленькие чистые функции (`load_config`, `validate`,
-  `build_message`, `connect_smtp`, …), точка входа — `main()` под `if __name__ == "__main__"`.
-- **Комментарии и сообщения на русском** — сохраняй этот язык.
-- **Константы** (лимиты, регэкспы, число ретраев) вынесены наверх модуля.
-- **Переиспользование**: `import_csv.py` импортирует `EMAIL_RE` из `send_mail.py`
-  через `sys.path.insert`, не дублирует логику проверки адреса.
-- **Обработка исключений**: широкий `except Exception` помечен `# noqa: BLE001` с
-  явной развилкой по типу ошибки через `is_temporary()`.
-- **Типизация**: в текущем коде не используется; если добавляешь — делай это
-  последовательно, без `Any` без необходимости.
-- **Зависимости**: минимальные. Не добавляй новые пакеты без необходимости; при
-  добавлении — вписывай в `requirements.txt`.
-
-## Тестирование
-
-Тестов в проекте нет. Если появятся — держи их рядом с кодом (`tests/`), мокай
-только прямые зависимости (`smtplib`, файловую систему), не трогай транзитивные.
-
-## Рекомендованный порядок первой рассылки
-
+## Запуск (локально)
 ```bash
-python3 send_mail.py --dry-run          # сверить состав писем
-python3 send_mail.py --limit 1          # одно письмо на свой адрес
-python3 send_mail.py                    # остальные, уже отправленные пропустятся
+pip install pipenv
+PIPENV_VENV_IN_PROJECT=1 pipenv install
+cp .env.example .env        # заполнить SMTP_PASSWORD
+make dev                    # = pipenv run uvicorn app.main:app --reload
 ```
+Альтернатива: `pipenv run python -m app [--host --port --reload]`.
+В VS Code выбрать интерпретатор `./.venv/bin/python` (иначе Pylance ругается на импорты).
+
+## API (базовый префикс `/api`)
+| Метод | Путь | Назначение |
+|---|---|---|
+| `GET` | `/api/health` | здоровье |
+| `POST` | `/api/campaigns` | создать кампанию |
+| `GET` | `/api/campaigns` | список + прогресс |
+| `GET` | `/api/campaigns/{id}` | кампания + счётчики |
+| `POST` | `/api/campaigns/{id}/recipients` | добавить получателей (атомарно) |
+| `GET` | `/api/campaigns/{id}/recipients` | список получателей |
+| `POST` | `/api/campaigns/{id}/import-csv` | импорт CSV (`имя,email,файл`) |
+| `POST` | `/api/campaigns/{id}/recipients/{rid}/attachments` | загрузить вложение |
+| `POST` | `/api/campaigns/{id}/start` | запуск рассылки (202) |
+| `POST` | `/api/campaigns/{id}/stop` | пауза |
+| `DELETE` | `/api/recipients/{rid}` | удалить получателя |
+
+## Ключевые инварианты (сохранять)
+- **Валидация ДО отправки**: `recipient_service.validate_campaign_ready` — синтаксис
+  email (`EMAIL_RE` из `core/constants.py`), дубликаты в кампании, наличие/читаемость
+  файлов, лимит вложений 25 МБ × 1.37. При ошибке `start` возвращает `400` со
+  списком, ничего не шлём.
+- **Возобновление**: статусы получателей в БД (`pending`/`sent`/`failed`) заменяют
+  старый `sent.log`. Воркер при старте процесса подхватывает «зависшие» `RUNNING`.
+- **Ретраи**: временные ошибки — до 3 попыток с паузой 2/4/8 с и переподключением
+  (`mail_sender._is_temporary`); постоянные — `failed`, рассылка продолжается.
+- **Фоновая отправка**: `start` отдаёт `202`, отправляет отдельный поток
+  (`services/worker.py`), запущенный в `lifespan`. Запрос не блокируется.
+
+## Модули — зоны ответственности
+- `core/config.py` — `Settings` (pydantic-settings), `get_settings()` (кеш).
+- `core/constants.py` — `EMAIL_RE`.
+- `db/*` — ORM: `Campaign`, `Recipient`, `Attachment` + сессия.
+- `schemas/*` — pydantic-модели запрос/ответ (`from_attributes=True`).
+- `services/mail_sender.py` — `MailSender`: connect/build/retry; **не знает про БД**.
+- `services/recipient_service.py` — валидация, добавление, вложения, готовность.
+- `services/campaign_service.py` — CRUD кампаний, прогресс, импорт CSV.
+- `services/worker.py` — фоновый поток отправки.
+- `api/*` — роутеры FastAPI; `deps.py` даёт `get_db` и `get_worker`.
+
+## Заметки
+- `send_mail.py` / `import_csv.py` — **легаси** CLI; логика перенесена в
+  `app/services/*`. Удалять только после проверки нового API.
+- Миграции: Alembic пока **не подключён** — таблицы создаются
+  `Base.metadata.create_all` в `lifespan`. Добавить Alembic, когда схема
+  стабилизируется.
+- `.vscode/` в `.gitignore` (настройки редактора не коммитим).

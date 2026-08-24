@@ -76,7 +76,7 @@ PROJECT_MEMORY.md    # эта память
 - [x] **Шаг 7** — `app/api/` роутеры (campaigns, recipients, attachments, health) +
   сборка `app/main.py`.
 - [x] **Шаг 8** — `Makefile`, `.env.example` (SMTP_*, DATABASE_URL, ATTACHMENTS_DIR).
-- [ ] **Шаг 9** — обновить `README.md` под запуск `python -m app` / `make dev` и эндпоинты.
+- [x] **Шаг 9** — обновить `README.md` под запуск `python -m app` / `make dev` и эндпоинты.
 
 ## Окружение / запуск
 - Python 3.14.6 через pyenv.

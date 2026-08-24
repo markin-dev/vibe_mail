@@ -1,5 +1,3 @@
-.PHONY: dev run install
-
 install:
 	pipenv install
 
