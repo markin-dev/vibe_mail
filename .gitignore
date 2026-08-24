@@ -7,3 +7,4 @@ attachments/
 .vscode/
 __pycache__/
 *.pyc
+vibe_mail.db
