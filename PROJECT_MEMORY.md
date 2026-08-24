@@ -73,7 +73,7 @@ PROJECT_MEMORY.md    # эта память
 - [x] **Шаг 5** — `app/services/recipient_service.py` + `app/services/campaign_service.py`
   (валидация email/дубликаты/файлы/размер, CRUD, импорт CSV из `import_csv.py`).
 - [x] **Шаг 6** — `app/services/worker.py` (фоновый поток) + `lifespan` в `app/main.py`.
-- [ ] **Шаг 7** — `app/api/` роутеры (campaigns, recipients, attachments, health) +
+- [x] **Шаг 7** — `app/api/` роутеры (campaigns, recipients, attachments, health) +
   сборка `app/main.py`.
 - [ ] **Шаг 8** — `Makefile`, `.env.example` (SMTP_*, DATABASE_URL, ATTACHMENTS_DIR).
 - [ ] **Шаг 9** — обновить `README.md` под запуск `python -m app` / `make dev` и эндпоинты.

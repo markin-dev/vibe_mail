@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.api import attachments, campaigns, health, recipients
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.base import Base
@@ -28,3 +29,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="vibe_mail API", version="0.1.0", lifespan=lifespan)
+
+app.include_router(campaigns.router)
+app.include_router(recipients.router)
+app.include_router(attachments.router)
+app.include_router(health.router)
