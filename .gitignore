@@ -8,3 +8,5 @@ attachments/
 __pycache__/
 *.pyc
 vibe_mail.db
+node_modules
+.agents

@@ -98,3 +98,23 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   `Base.metadata.create_all` в `lifespan`. Добавить Alembic, когда схема
   стабилизируется.
 - `.vscode/` в `.gitignore` (настройки редактора не коммитим).
+- **Фронтенд-админка** живёт в отдельном каталоге `admin-front/` (Vite 8 + Vue 3.5 +
+  TypeScript 6, Node 24 через nvm). Это отдельный npm-проект, не связанный с
+  Pipenv. Глобальные правила `~/.claude/CLAUDE.md` про TS/Vue **применяются** к нему.
+  Запуск: `cd admin-front && npm install && npm run dev`. Подробности — в
+  `PROJECT_MEMORY.md` (раздел «Фронтенд»).
+- **UI-kit шадкн**: в `admin-front` проинициализирован **shadcn-vue** поверх **Tailwind
+  CSS v4** (`@tailwindcss/vite`). Компоненты — исходники в `src/components/ui`,
+  добавляются через `npx shadcn-vue@latest add <name>` (строго из `admin-front`).
+  MCP `shadcnVue` в `opencode.json` настроен с `cwd: "admin-front"`. Корневые
+  npm-артефакты, которые установщик скилла слил в корень, удалены — фронт полностью
+  изолирован в `admin-front/`.
+- **Порядок блоков в `.vue`-файлах (наши компоненты):** сначала `<template>`,
+  затем `<script>` (`setup`), затем `<style>`. Относится к проектным файлам
+  (`src/App.vue`, `src/components/*` кроме `ui/`, будущие страницы/компоненты).
+  Сгенерированные shadcn-компоненты в `src/components/ui/*` не трогаем — их
+  перезаписывает тулинг при обновлениях.
+- **UI-элементы — только из shadcn:** кнопки берём из `@/components/ui/button`
+  (`Button`), свою реализацию кнопок/инпутов/карточек не пишем. Любой элемент
+  интерфейса — из shadcn (или добавляем через `npx shadcn-vue@latest add <name>`),
+  а не кастомная вёрстка `div`/`button`.

@@ -28,6 +28,12 @@
   через `PIPENV_VENV_IN_PROJECT=1` (gitignored).
 - **`.vscode/`:** добавлен в `.gitignore` — пользователь не хочет коммитить настройки
   редактора (каждый настраивает интерпретатор локально).
+- **Фронтенд (админка):** отдельный проект в каталоге `admin-front/` на **Vite 8 +
+  Vue 3.5 + TypeScript 6** (стандартный scaffold `npm create vite` с шаблоном
+  `vue-ts`). Node — **24** (через nvm: `nvm use 24`). Пока это пустой каркас без
+  фич; к нему будет цепляться админка поверх HTTP API бэкенда. Глобальные правила
+  из `~/.claude/CLAUDE.md` про TS/Vue **применяются** к `admin-front/` (в отличие от
+  Python-части). Запуск: `cd admin-front && npm install && npm run dev`.
 
 ## Почему нельзя оставить синхронную отправку из CLI
 В API запрос не может блокировать на всю рассылку: таймаут клиента, блокировка
@@ -60,6 +66,30 @@ PROJECT_MEMORY.md    # эта память
   переподключением; постоянные (5xx, отказ получателя/отправителя) — `failed`, рассылка
   продолжается.
 - Относительные пути вложений резолвятся относительно `ATTACHMENTS_DIR`.
+
+## Фронтенд (admin-front) — админка
+- Каталог `admin-front/` — отдельный npm-проект (не зависит от Pipenv/Python).
+- Стек: **Vite 8**, **Vue 3.5** (`<script setup>` + Composition API), **TypeScript 6**
+  (проверка типов через `vue-tsc` в `npm run build`). Node 24 обязателен (nvm).
+- **UI-kit — shadcn-vue**: проинициализирован внутри `admin-front` (`components.json`,
+  `src/lib/utils.ts` с `cn()`, алиасы `@/*` → `./src/*`, `ui` → `@/components/ui`).
+  Компоненты добавляются как исходники в `src/components/ui` через CLI
+  `npx shadcn-vue@latest add <name>` (запускать строго из `admin-front`).
+- **Tailwind CSS v4**: подключён через `@tailwindcss/vite`, директива
+  `@import "tailwindcss";` в `src/style.css`; CSS-переменные темы (base color `neutral`,
+  style `nova`) прописаны туда же шагом `init`.
+- Правила из `~/.claude/CLAUDE.md` (TS/Vue/Composables/тесты/импорты) **действуют**
+  для этого каталога. В частности: `withDefaults` для пропсов, type guards вместо
+  `as`, компоненты без внешних margin, поиск по `data-test`, composables не вызывают
+  lifecycle-хуки напрямую (возвращают функцию инициализации).
+- **MCP shadcn-vue** (`opencode.json`) запускается с `cwd: "admin-front"`, чтобы
+  инструменты MCP работали с фронтом, а не с корнем репозитория. Скилл
+  `.agents/skills/shadcn-vue` — это инструкции; его команды тоже выполняются из
+  `admin-front`.
+- Корневые npm-артефакты, которые установщик MCP/скилла слил в корень репозитория
+  (`package.json`/`package-lock.json`/`node_modules` с `shadcn-vue`), **удалены** —
+  всё фронтовое живёт только в `admin-front`.
+- `.vscode/` и `node_modules/` уже в корневом `.gitignore` (покрывают и этот каталог).
 
 ## Прогресс реализации (по шагам)
 - [x] **Шаг 1** — каркас: `app/__init__.py`, `app/core/*` (config, constants, logging);
