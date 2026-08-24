@@ -70,7 +70,7 @@ PROJECT_MEMORY.md    # эта память
   RecipientCreate/Read, RecipientsBulk, AttachmentRead, MessageOut.
 - [x] **Шаг 4** — `app/services/mail_sender.py`: класс `MailSender` (connect, build,
   retry 2/4/8 с, is_temporary). Не зависит от БД.
-- [ ] **Шаг 5** — `app/services/recipient_service.py` + `app/services/campaign_service.py`
+- [x] **Шаг 5** — `app/services/recipient_service.py` + `app/services/campaign_service.py`
   (валидация email/дубликаты/файлы/размер, CRUD, импорт CSV из `import_csv.py`).
 - [ ] **Шаг 6** — `app/services/worker.py` (фоновый поток) + `lifespan` в `app/main.py`.
 - [ ] **Шаг 7** — `app/api/` роутеры (campaigns, recipients, attachments, health) +
