@@ -1,2 +1,0 @@
-PyYAML>=6.0
-python-dotenv>=1.0  # опционально: свой парсер .env есть в send_mail.py
