@@ -75,7 +75,7 @@ PROJECT_MEMORY.md    # эта память
 - [x] **Шаг 6** — `app/services/worker.py` (фоновый поток) + `lifespan` в `app/main.py`.
 - [x] **Шаг 7** — `app/api/` роутеры (campaigns, recipients, attachments, health) +
   сборка `app/main.py`.
-- [ ] **Шаг 8** — `Makefile`, `.env.example` (SMTP_*, DATABASE_URL, ATTACHMENTS_DIR).
+- [x] **Шаг 8** — `Makefile`, `.env.example` (SMTP_*, DATABASE_URL, ATTACHMENTS_DIR).
 - [ ] **Шаг 9** — обновить `README.md` под запуск `python -m app` / `make dev` и эндпоинты.
 
 ## Окружение / запуск
