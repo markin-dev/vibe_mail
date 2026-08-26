@@ -1,5 +1,5 @@
 <template>
-  <Sidebar>
+  <Sidebar variant="inset">
     <SidebarContent>
       <SidebarMenu/>
     </SidebarContent>
