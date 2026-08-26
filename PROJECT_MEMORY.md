@@ -97,9 +97,6 @@ PROJECT_MEMORY.md    # эта память
   `eslint-plugin-import-x` (резолвер алиаса `@`→`src` с расширениями `.ts/.tsx/.jsx`),
   `typescript-eslint` (парсер TS в `<script setup lang="ts">` блоках `.vue`),
   `eslint-plugin-better-tailwindcss`.
-- **Prettier НЕ используется** — явное решение: удалён вместе с `prettier-plugin-tailwindcss`
-  (конфликтовал с `vue/padding-line-between-tags` и линт-правилами). Сортировка классов сейчас не
-  настроена (better-tailwindcss order-rule не включён).
 - `src/components/ui/**` **игнорируется ESLint** — сгенерированный shadcn-код не правим (CLI
   перезаписывает).
 - **better-tailwindcss** требует `settings['better-tailwindcss'].entryPoint` → `src/style.css`
