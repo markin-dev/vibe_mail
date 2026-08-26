@@ -91,6 +91,32 @@ PROJECT_MEMORY.md    # эта память
   всё фронтовое живёт только в `admin-front`.
 - `.vscode/` и `node_modules/` уже в корневом `.gitignore` (покрывают и этот каталог).
 
+## Фронтенд — линтинг и стиль (admin-front)
+- **ESLint настроен** (flat config `admin-front/eslint.config.js`; скрипты `npm run lint` /
+  `lint:fix`). Плагины: `@eslint/js`, `@stylistic/eslint-plugin`, `eslint-plugin-vue`,
+  `eslint-plugin-import-x` (резолвер алиаса `@`→`src` с расширениями `.ts/.tsx/.jsx`),
+  `typescript-eslint` (парсер TS в `<script setup lang="ts">` блоках `.vue`),
+  `eslint-plugin-better-tailwindcss`.
+- **Prettier НЕ используется** — явное решение: удалён вместе с `prettier-plugin-tailwindcss`
+  (конфликтовал с `vue/padding-line-between-tags` и линт-правилами). Сортировка классов сейчас не
+  настроена (better-tailwindcss order-rule не включён).
+- `src/components/ui/**` **игнорируется ESLint** — сгенерированный shadcn-код не правим (CLI
+  перезаписывает).
+- **better-tailwindcss** требует `settings['better-tailwindcss'].entryPoint` → `src/style.css`
+  (Tailwind v4; иначе «no tailwind css entry point» и неверный перенос классов). Правила:
+  `enforce-consistent-line-wrapping` (printWidth 120, `vueConvertToBinding:false`),
+  `no-duplicate-classes`, `no-conflicting-classes`.
+- `vue/padding-line-between-tags` задаётся через `prev`/`next` (НЕ `tags`/`prepend` — удалены в
+  новых версиях `eslint-plugin-vue`).
+- **components.json**: поле `$schema` намеренно убрано (схема не используется вообще), чтобы не
+  было варнинга VS Code про untrusted remote schema. `defineConfig` для shadcn-vue не существует —
+  CLI читает только `components.json`.
+- **Стиль длинных Tailwind-классов**: группировать внутри `cn()` по смыслу; повторяющиеся куски
+  выносить в `@utility` (в `style.css`), а не через `@apply`; состояние родителя — в CSS-переменную.
+  Пример: в `AppHeader.vue` удалён мёртвый no-op
+  `group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)` (дублировал базовую
+  высоту) и добавлен `@utility transition-size`.
+
 ## Прогресс реализации (по шагам)
 - [x] **Шаг 1** — каркас: `app/__init__.py`, `app/core/*` (config, constants, logging);
   Pipenv-конфиг (`Pipfile`, `Pipfile.lock`), `requirements.txt` удалён.
