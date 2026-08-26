@@ -77,6 +77,12 @@ export default [
       'vue/max-len': ['error', { code: 120, ignoreStrings: true }],
       'no-console': ['warn', { allow: ['error'] }],
       'vue/attributes-order': ['warn', { order: attributesOrder, alphabetical: false }],
+      'vue/padding-line-between-tags': ['error', [
+        { blankLine: 'always', prev: '*:single-line', next: '*:multi-line' },
+        { blankLine: 'always', prev: '*:multi-line', next: '*:single-line' },
+        { blankLine: 'always', prev: '*:multi-line', next: '*:multi-line' },
+        { blankLine: 'never', prev: '*:single-line', next: '*:single-line' },
+      ]],
     },
   },
 ];

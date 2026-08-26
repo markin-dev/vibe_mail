@@ -1,8 +1,10 @@
 <template>
   <SidebarProvider>
     <AppSidebar />
+
     <SidebarInset>
       <AppHeader />
+
       <div class="p-4">
         <RouterView />
       </div>
