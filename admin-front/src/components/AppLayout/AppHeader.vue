@@ -6,7 +6,12 @@
       $props.class,
     )"
   >
-    <div class="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
+    <div
+      class="
+        flex w-full items-center gap-1 px-4
+        lg:gap-2 lg:px-6
+      "
+    >
       <SidebarTrigger class="-ml-1" />
 
       <Separator
@@ -22,7 +27,10 @@
         <Button
           variant="ghost"
           size="sm"
-          class="hidden sm:flex"
+          class="
+            hidden
+            sm:flex
+          "
           as-child
         >
           <a

@@ -4,6 +4,7 @@ import stylistic from '@stylistic/eslint-plugin';
 import pluginVue from 'eslint-plugin-vue';
 import { createNodeResolver, flatConfigs as importXConfigs } from 'eslint-plugin-import-x';
 import tseslint from 'typescript-eslint';
+import betterTailwindcss from 'eslint-plugin-better-tailwindcss';
 import globals from 'globals';
 
 const aliasResolver = createNodeResolver({
@@ -83,6 +84,28 @@ export default [
         { blankLine: 'always', prev: '*:multi-line', next: '*:multi-line' },
         { blankLine: 'never', prev: '*:single-line', next: '*:single-line' },
       ]],
+    },
+  },
+  {
+    files: ['src/**/*.{js,vue}'],
+    plugins: {
+      'better-tailwindcss': betterTailwindcss,
+    },
+    settings: {
+      // Tailwind v4 — точка входа CSS, иначе плагин не находит utility/варианты
+      'better-tailwindcss': {
+        entryPoint: path.resolve(import.meta.dirname, 'src/style.css'),
+      },
+    },
+    rules: {
+      // перенос длинных Tailwind-классов по лимиту (best-practice №6)
+      'better-tailwindcss/enforce-consistent-line-wrapping': ['error', {
+        printWidth: 120,
+        // prettier не используется — конвертация class → :class не нужна
+        vueConvertToBinding: false,
+      }],
+      'better-tailwindcss/no-duplicate-classes': 'error',
+      'better-tailwindcss/no-conflicting-classes': 'error',
     },
   },
 ];
