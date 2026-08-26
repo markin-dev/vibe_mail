@@ -124,3 +124,8 @@
     @apply bg-background text-foreground font-sans;
   }
 }
+
+@utility transition-size {
+  transition-property: width, height;
+  transition-timing-function: linear;
+}
