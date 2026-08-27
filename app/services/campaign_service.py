@@ -1,14 +1,20 @@
 """Работа с кампаниями: CRUD, прогресс, импорт получателей из CSV."""
 import csv
 import io
+
+from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from fastapi import HTTPException
-
 from app.core.config import get_settings
 from app.core.constants import EMAIL_RE
-from app.db.models import Attachment, Campaign, CampaignStatus, Recipient, RecipientStatus
+from app.db.models import (
+    Attachment,
+    Campaign,
+    CampaignStatus,
+    Recipient,
+    RecipientStatus,
+)
 from app.schemas.campaign import CampaignCreate
 from app.services.recipient_service import _safe_filename
 

@@ -10,25 +10,23 @@
 `CampaignReadEnvelope`), чтобы в сгенерированной OpenAPI-схеме были
 стабильные, читаемые имена (generic даёт хешированные суффиксы).
 """
-from typing import Generic, Literal, Optional, TypeVar
+from typing import Literal
 
 from pydantic import BaseModel
 
 from app.schemas.campaign import CampaignRead, ImportCsvResult, MessageOut
 from app.schemas.recipient import AttachmentRead, RecipientRead
 
-T = TypeVar("T")
 
-
-class ApiEnvelope(BaseModel, Generic[T]):
+class ApiEnvelope[T](BaseModel):
     """Базовая обёртка ответа."""
 
     status: Literal["success", "error"] = "success"
-    result: Optional[T] = None
-    error: Optional[str] = None
+    result: T | None = None
+    error: str | None = None
 
 
-def ok(result: T | None = None) -> ApiEnvelope[T]:
+def ok[T](result: T | None = None) -> ApiEnvelope[T]:
     """Успешный ответ-обёртка."""
     return ApiEnvelope[T](status="success", result=result, error=None)
 

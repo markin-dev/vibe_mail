@@ -1,6 +1,5 @@
 """Pydantic-схемы для кампаний (входные и выходные данные API)."""
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -13,8 +12,8 @@ class CampaignCreate(BaseModel):
     name: str
     subject: str
     body: str
-    body_html: Optional[str] = None
-    from_name: Optional[str] = None
+    body_html: str | None = None
+    from_name: str | None = None
 
 
 class CampaignRead(BaseModel):
@@ -24,11 +23,11 @@ class CampaignRead(BaseModel):
     name: str
     subject: str
     body: str
-    body_html: Optional[str] = None
-    from_name: Optional[str] = None
+    body_html: str | None = None
+    from_name: str | None = None
     status: CampaignStatus
     created_at: datetime
-    totals: Optional[dict] = None
+    totals: dict | None = None
 
     model_config = {"from_attributes": True}
 

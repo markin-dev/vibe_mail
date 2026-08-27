@@ -10,12 +10,12 @@ import datetime
 from sqlalchemy.orm import Session
 
 from app.db.models import Base, Campaign, CampaignStatus
-from app.db.session import engine, SessionLocal
+from app.db.session import SessionLocal, engine
 
 
 def _days_ago(days: int) -> datetime.datetime:
     """Возвращает naive-UTC время на N дней назад от текущего момента."""
-    base = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    base = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
     return base - datetime.timedelta(days=days)
 
 

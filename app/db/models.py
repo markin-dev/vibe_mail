@@ -2,7 +2,8 @@
 import datetime
 import enum
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -10,10 +11,10 @@ from app.db.base import Base
 
 def _now() -> datetime.datetime:
     """Текущее время в UTC (naive) — для полей created_at/sent_at."""
-    return datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    return datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
 
 
-class CampaignStatus(str, enum.Enum):
+class CampaignStatus(enum.StrEnum):
     DRAFT = "draft"
     RUNNING = "running"
     PAUSED = "paused"
@@ -21,7 +22,7 @@ class CampaignStatus(str, enum.Enum):
     ERROR = "error"
 
 
-class RecipientStatus(str, enum.Enum):
+class RecipientStatus(enum.StrEnum):
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"

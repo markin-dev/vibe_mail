@@ -6,6 +6,7 @@
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import mimetypes
 import smtplib
@@ -13,10 +14,13 @@ import ssl
 import time
 from email.message import EmailMessage
 from email.utils import formataddr
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from app.core.config import Settings
-from app.db.models import Campaign, Recipient
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from app.core.config import Settings
+    from app.db.models import Campaign, Recipient
 
 log = logging.getLogger("vibe_mail.mail_sender")
 
@@ -119,9 +123,7 @@ class MailSender:
                 time.sleep(2 ** attempt)
             finally:
                 if smtp is not None:
-                    try:
+                    with contextlib.suppress(Exception):
                         smtp.quit()
-                    except Exception:  # noqa: BLE001
-                        pass
 
         return (False, str(last_exc) if last_exc else "unknown error")

@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
 from app.schemas.envelope import AttachmentReadEnvelope, ok
-from app.schemas.recipient import AttachmentRead
 from app.services import campaign_service as cs
 from app.services import recipient_service as rs
 

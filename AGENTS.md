@@ -24,6 +24,10 @@ HTTP-API сервис массовой рассылки писем с индив
   `PIPENV_VENV_IN_PROJECT=1`, gitignored).
 - Язык комментариев и сообщений — **русский**.
 - Тестов **нет** (пользователь явно отменил).
+- **Линтер — ruff** (dev-зависимость в `Pipfile`, конфиг в `pyproject.toml`).
+  Запуск: `make lint` (= `pipenv run ruff check`). В `select` включены E/W/F/I/UP/B/C4/SIM/RET/PTH/TC;
+  `ignore` — `E501` (длину держит форматтер) и `B008` (ложный позитив на `Depends()` в FastAPI).
+  Легаси-CLI `send_mail.py`/`import_csv.py` исключены из проверки (код перенесён в `app/services`).
 - Правила глобального `CLAUDE.md` про TS/Vue не применять.
 
 ## Структура (реализовано)

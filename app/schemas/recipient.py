@@ -1,6 +1,5 @@
 """Pydantic-схемы для получателей и вложений."""
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -11,7 +10,7 @@ class RecipientCreate(BaseModel):
     """Тело запроса на добавление одного получателя."""
 
     email: str
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class RecipientsBulk(BaseModel):
@@ -36,10 +35,10 @@ class RecipientRead(BaseModel):
     id: int
     campaign_id: int
     email: str
-    name: Optional[str] = None
+    name: str | None = None
     status: RecipientStatus
-    error: Optional[str] = None
-    sent_at: Optional[datetime] = None
+    error: str | None = None
+    sent_at: datetime | None = None
     attachments: list[AttachmentRead] = []
 
     model_config = {"from_attributes": True}

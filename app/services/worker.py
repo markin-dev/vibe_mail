@@ -8,7 +8,7 @@ MailSender, обновляет статусы в БД. БД — источник
 import logging
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.core.config import Settings
@@ -67,7 +67,7 @@ class Worker:
                             r.status = RecipientStatus.SENT if ok else RecipientStatus.FAILED
                             r.error = err
                             r.sent_at = (
-                                datetime.now(timezone.utc).replace(tzinfo=None) if ok else None
+                                datetime.now(UTC).replace(tzinfo=None) if ok else None
                             )
                             db.commit()
                             if ok:

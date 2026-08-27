@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+# Легаси-CLI (логика перенесена в app/services), не поддерживаем как продукт
+exclude = ["send_mail.py", "import_csv.py"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",   # pycodestyle
+  "F",        # pyflakes
+  "I",        # isort
+  "UP",       # pyupgrade
+  "B",        # bugbear — реальные баги, не стиль
+  "C4",       # comprehensions
+  "SIM",      # упрощения
+  "RET",      # return-паттерны
+  "PTH",      # pathlib вместо os.path
+  "TC",       # импорты в TYPE_CHECKING
+]
+# E501 — длину строк контролирует форматтер; B008 — ложный срабатывание на Depends() в FastAPI
+ignore = ["E501", "B008"]

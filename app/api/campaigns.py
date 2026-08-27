@@ -18,7 +18,7 @@ from app.schemas.envelope import (
     MessageOutEnvelope,
     ok,
 )
-from app.schemas.recipient import RecipientCreate, RecipientRead, RecipientsBulk
+from app.schemas.recipient import RecipientsBulk
 from app.services import campaign_service as cs
 from app.services import recipient_service as rs
 from app.services.worker import Worker

@@ -6,3 +6,9 @@ dev:
 
 run:
 	pipenv run uvicorn app.main:app
+
+lint:
+	pipenv run ruff check
+
+format:
+	pipenv run ruff format

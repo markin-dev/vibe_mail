@@ -3,8 +3,6 @@ import argparse
 
 import uvicorn
 
-from app.main import app
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="vibe_mail API")

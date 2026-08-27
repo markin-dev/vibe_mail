@@ -1,10 +1,9 @@
 """Точка сборки FastAPI-приложения."""
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi import HTTPException, Request
 
 from app.api import attachments, campaigns, health, recipients
 from app.core.config import get_settings
