@@ -159,10 +159,16 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   стабилизируется.
 - `.vscode/` в `.gitignore` (настройки редактора не коммитим).
 - **Фронтенд-админка** живёт в отдельном каталоге `admin-front/` (Vite 8 + Vue 3.5 +
-  TypeScript 6, Node 24 через nvm). Это отдельный npm-проект, не связанный с
+  TypeScript 5, Node 24 через nvm). Это отдельный npm-проект, не связанный с
   Pipenv. Глобальные правила `~/.claude/CLAUDE.md` про TS/Vue **применяются** к нему.
   Запуск: `cd admin-front && npm install && npm run dev`. Подробности — в
   `PROJECT_MEMORY.md` (раздел «Фронтенд»).
+- **TypeScript закреплён на 5.x** (`typescript: "~5.9.0"` в `admin-front/package.json`),
+  хотя стек иначе современный. Причина: dev-зависимость `openapi-typescript` (нужна для
+  `npm run generate:api`) требует `typescript@^5.x` и пока не имеет TS-6-совместимой
+  версии. Из-за этого при TS 6 `npm install` и `npx shadcn-vue add` падают с peer-конфликтом
+  и требуют `--legacy-peer-deps`. С TS 5 установка и генерация компонентов работают чисто,
+  без флагов. Не поднимайте typescript выше 5.x, пока `openapi-typescript` не поддержит TS 6.
 - **UI-kit шадкн**: в `admin-front` проинициализирован **shadcn-vue** поверх **Tailwind
   CSS v4** (`@tailwindcss/vite`). Компоненты — исходники в `src/components/ui`,
   добавляются через `npx shadcn-vue@latest add <name>` (строго из `admin-front`).
