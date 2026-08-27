@@ -119,8 +119,15 @@
           <TableRow>
             <TableHead>Email</TableHead>
             <TableHead>Имя</TableHead>
-            <TableHead>Статус</TableHead>
-            <TableHead>Ошибка</TableHead>
+
+            <TableHead class="w-25">
+              Статус
+            </TableHead>
+
+            <TableHead class="w-200 max-w-200">
+              Ошибка
+            </TableHead>
+
             <TableHead>Отправлено</TableHead>
             <TableHead>Вложения</TableHead>
           </TableRow>
@@ -165,8 +172,27 @@
                 </Badge>
               </TableCell>
 
-              <TableCell class="text-destructive">
-                {{ recipient.error ?? '—' }}
+              <TableCell class="w-200 max-w-200">
+                <TooltipProvider v-if="recipient.error">
+                  <Tooltip>
+                    <TooltipTrigger as-child>
+                      <span class="block truncate text-destructive">
+                        {{ recipient.error }}
+                      </span>
+                    </TooltipTrigger>
+
+                    <TooltipContent>
+                      <p class="max-w-xs wrap-break-words">
+                        {{ recipient.error }}
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <span
+                  v-else
+                  class="text-destructive"
+                >—</span>
               </TableCell>
 
               <TableCell>
@@ -199,6 +225,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import useGetCampaign from '@/composables/data/useGetCampaign';
 import useGetRecipients from '@/composables/data/useGetRecipients';
 import useStartCampaign from '@/composables/data/useStartCampaign';
