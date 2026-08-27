@@ -61,7 +61,7 @@ class MailSender:
         """Собирает EmailMessage из данных кампании и получателя."""
         sender = self.settings.SMTP_USER
         msg = EmailMessage()
-        msg["From"] = formataddr((campaign.from_name, sender)) if campaign.from_name else sender
+        msg["From"] = sender
         msg["To"] = (
             formataddr((recipient.name, recipient.email))
             if recipient.name
@@ -69,8 +69,6 @@ class MailSender:
         )
         msg["Subject"] = campaign.subject
         msg.set_content(campaign.body)
-        if campaign.body_html:
-            msg.add_alternative(campaign.body_html, subtype="html")
 
         for path in files:
             ctype, _ = mimetypes.guess_type(path.name)

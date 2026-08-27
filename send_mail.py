@@ -78,8 +78,6 @@ def load_config(path):
 
     cfg.setdefault("attachments_dir", "attachments")
     cfg.setdefault("delay", 2)
-    cfg.setdefault("from_name", None)
-    cfg.setdefault("body_html", None)
     return cfg
 
 
@@ -174,7 +172,7 @@ def record_sent(handle, email):
 def build_message(cfg, recipient):
     msg = EmailMessage()
     sender = cfg["smtp"]["user"]
-    msg["From"] = formataddr((cfg["from_name"], sender)) if cfg["from_name"] else sender
+    msg["From"] = sender
     msg["To"] = (
         formataddr((recipient["name"], recipient["email"]))
         if recipient.get("name")
@@ -182,8 +180,6 @@ def build_message(cfg, recipient):
     )
     msg["Subject"] = cfg["subject"]
     msg.set_content(cfg["body"])
-    if cfg["body_html"]:
-        msg.add_alternative(cfg["body_html"], subtype="html")
 
     for path in recipient["files"]:
         ctype, _ = mimetypes.guess_type(path.name)

@@ -12,8 +12,6 @@ class CampaignCreate(BaseModel):
     name: str
     subject: str
     body: str
-    body_html: str | None = None
-    from_name: str | None = None
 
 
 class CampaignRead(BaseModel):
@@ -23,8 +21,6 @@ class CampaignRead(BaseModel):
     name: str
     subject: str
     body: str
-    body_html: str | None = None
-    from_name: str | None = None
     status: CampaignStatus
     created_at: datetime
     totals: dict | None = None

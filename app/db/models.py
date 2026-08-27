@@ -36,8 +36,6 @@ class Campaign(Base):
     name: Mapped[str] = mapped_column(String(255))
     subject: Mapped[str] = mapped_column(String(1024))
     body: Mapped[str] = mapped_column(Text)
-    body_html: Mapped[str | None] = mapped_column(Text, nullable=True)
-    from_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[CampaignStatus] = mapped_column(
         SAEnum(CampaignStatus), default=CampaignStatus.DRAFT
     )

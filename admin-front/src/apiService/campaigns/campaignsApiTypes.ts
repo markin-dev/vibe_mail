@@ -20,8 +20,6 @@ export interface Campaign {
   name: string;
   subject: string;
   body: string;
-  bodyHtml: string | null;
-  fromName: string | null;
   status: CampaignStatus;
   createdAt: string;
   totals: CampaignTotals | null;

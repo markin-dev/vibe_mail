@@ -24,10 +24,8 @@ export const adaptCampaign = (campaign: CampaignReadWire): Campaign => ({
   id: campaign.id,
   name: campaign.name,
   subject: campaign.subject,
-  body: campaign.body,
-  bodyHtml: campaign.body_html ?? null,
-  fromName: campaign.from_name ?? null,
-  status: campaign.status as CampaignStatus,
+    body: campaign.body,
+    status: campaign.status as CampaignStatus,
   createdAt: campaign.created_at,
   totals: adaptTotals(campaign.totals),
 });

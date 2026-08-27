@@ -211,10 +211,6 @@ export interface components {
             subject: string;
             /** Body */
             body: string;
-            /** Body Html */
-            body_html?: string | null;
-            /** From Name */
-            from_name?: string | null;
         };
         /**
          * CampaignRead
@@ -229,10 +225,6 @@ export interface components {
             subject: string;
             /** Body */
             body: string;
-            /** Body Html */
-            body_html?: string | null;
-            /** From Name */
-            from_name?: string | null;
             status: components["schemas"]["CampaignStatus"];
             /**
              * Created At

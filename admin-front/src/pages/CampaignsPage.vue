@@ -36,7 +36,6 @@
             <TableHead>ID</TableHead>
             <TableHead>Название</TableHead>
             <TableHead>Тема</TableHead>
-            <TableHead>Отправитель</TableHead>
             <TableHead>Статус</TableHead>
             <TableHead>Прогресс</TableHead>
             <TableHead>Создана</TableHead>
@@ -46,7 +45,7 @@
         <TableBody>
           <TableEmpty
             v-if="(campaigns ?? []).length === 0"
-            :colspan="7"
+            :colspan="6"
           >
             <template v-if="isLoading">
               Загрузка…
@@ -70,7 +69,6 @@
             </TableCell>
 
             <TableCell>{{ campaign.subject }}</TableCell>
-            <TableCell>{{ campaign.fromName ?? '—' }}</TableCell>
 
             <TableCell>
               <Badge :variant="statusVariant(campaign.status)">

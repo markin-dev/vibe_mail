@@ -19,13 +19,12 @@ def _days_ago(days: int) -> datetime.datetime:
     return base - datetime.timedelta(days=days)
 
 
-# (name, subject, body, from_name, status, created_at_days_ago)
-SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
+# (name, subject, body, status, created_at_days_ago)
+SEED: list[tuple[str, str, str, CampaignStatus, int]] = [
     (
         "Новогодняя рассылка 2026",
         "С наступающим 2026 годом!",
         "Дорогой клиент, поздравляем вас с Новым годом и дарим скидку 20%.",
-        "Команда Vibe",
         CampaignStatus.DONE,
         210,
     ),
@@ -33,7 +32,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Запуск нового тарифа Pro",
         "Попробуйте Vibe Pro бесплатно 14 дней",
         "Мы запустили тариф Pro с расширенной аналитикой. Активируйте прямо сейчас.",
-        "Маркетинг Vibe",
         CampaignStatus.RUNNING,
         1,
     ),
@@ -41,7 +39,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Опрос удовлетворённости",
         "Помогите нам стать лучше — 2 минуты вашего времени",
         "Пройдите короткий опрос и получите промокод на следующий заказ.",
-        None,
         CampaignStatus.PAUSED,
         12,
     ),
@@ -49,7 +46,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Вебинар по массовым рассылкам",
         "Регистрируйтесь на бесплатный вебинар 15 сентября",
         "Разберём лучшие практики рассылок с индивидуальными вложениями.",
-        "Обучение Vibe",
         CampaignStatus.DRAFT,
         3,
     ),
@@ -57,7 +53,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Восстановление корзины",
         "Вы забыли товары в корзине 🛒",
         "Ваши товары всё ещё ждут вас. Завершите оформление со скидкой 10%.",
-        "Магазин Vibe",
         CampaignStatus.DONE,
         45,
     ),
@@ -65,7 +60,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Ежемесячный дайджест — август",
         "Что нового в Vibe за август",
         "Подборка обновлений, кейсов и полезных статей за прошедший месяц.",
-        "Команда Vibe",
         CampaignStatus.DONE,
         30,
     ),
@@ -73,7 +67,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Специальное предложение для партнёров",
         "Партнёрская программа: +15% к вознаграждению",
         "До конца месяца повышенный процент за привлечённых клиентов.",
-        "Партнёрство Vibe",
         CampaignStatus.RUNNING,
         6,
     ),
@@ -81,7 +74,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Техническое обслуживание API",
         "Плановые работы 1 сентября с 02:00 до 04:00",
         "Сообщаем о плановом обслуживании. Сервис будет временно недоступен.",
-        "Поддержка Vibe",
         CampaignStatus.DONE,
         25,
     ),
@@ -89,7 +81,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Приглашение на закрытую вечеринку",
         "Только для клиентов Premium",
         "Приглашаем вас на вечеринку для партнёров и VIP-клиентов.",
-        "Vibe Events",
         CampaignStatus.ERROR,
         8,
     ),
@@ -97,7 +88,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Обновление политики конфиденциальности",
         "Важные изменения в политике конфиденциальности",
         "Ознакомьтесь с обновлёнными условиями обработки данных.",
-        "Юристы Vibe",
         CampaignStatus.DONE,
         60,
     ),
@@ -105,7 +95,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Летняя распродажа — скидки до 50%",
         "Летние скидки в приложении Vibe",
         "Успейте купить по сниженным ценам до конца сезона.",
-        "Магазин Vibe",
         CampaignStatus.DONE,
         75,
     ),
@@ -113,7 +102,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Welcome-серия: шаг 1 из 3",
         "Добро пожаловать в Vibe! Начнём с основ",
         "Краткое руководство для новых пользователей: первые шаги в сервисе.",
-        None,
         CampaignStatus.PAUSED,
         2,
     ),
@@ -121,7 +109,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Напоминание об оплате подписки",
         "Ваша подписка истекает через 3 дня",
         "Продлите подписку, чтобы не потерять накопленные данные.",
-        "Биллинг Vibe",
         CampaignStatus.RUNNING,
         0,
     ),
@@ -129,7 +116,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Кейс: как мы ускорили отправку в 3 раза",
         "Инженерный разбор фоновой рассылки",
         "Рассказываем, как архитектура на FastAPI ускорила доставку писем.",
-        "Инженеры Vibe",
         CampaignStatus.DRAFT,
         18,
     ),
@@ -137,7 +123,6 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
         "Поздравление с профессиональным праздником",
         "С днём программиста!",
         "Поздравляем всех разработчиков с профессиональным праздником!",
-        "Команда Vibe",
         CampaignStatus.DONE,
         15,
     ),
@@ -147,12 +132,11 @@ SEED: list[tuple[str, str, str, str | None, CampaignStatus, int]] = [
 def seed(db: Session) -> int:
     Base.metadata.create_all(engine)
     count = 0
-    for name, subject, body, from_name, status, days in SEED:
+    for name, subject, body, status, days in SEED:
         campaign = Campaign(
             name=name,
             subject=subject,
             body=body,
-            from_name=from_name,
             status=status,
             created_at=_days_ago(days),
         )
