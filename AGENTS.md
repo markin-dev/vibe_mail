@@ -137,8 +137,9 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
     `openapi-typescript` (скрипт `npm run generate:api`, файл в `.eslintignore`).
     Wire-типы берутся отсюда (`components['schemas']`).
   - `index.ts` — **корневой баррель**: собирает доменные сервисы в единый фасад
-    `apiService` (использование: `apiService.campaigns.getCampaigns()`, `.createCampaign()`,
-    `.deleteCampaign()`).
+    `apiService` (использование: `apiService.campaigns.getCampaigns()`, `.getCampaign()`,
+    `.createCampaign()`, `.deleteCampaign()`, `.startCampaign()`;
+    `apiService.recipients.getRecipients()`).
   - **На каждый домен — своя папка** (например, `campaigns/`):
     - `campaignsApiTypes.ts` — доменные типы (camelCase, без обёртки) + wire-типы
       (из сгенерированной схемы).

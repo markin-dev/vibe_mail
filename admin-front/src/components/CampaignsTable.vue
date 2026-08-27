@@ -50,7 +50,13 @@
             <TableCell>{{ campaign.id }}</TableCell>
 
             <TableCell class="font-medium">
-              {{ campaign.name }}
+              <RouterLink
+                :to="{ name: 'campaign-details', params: { id: campaign.id } }"
+                class="hover:underline"
+                data-test="campaign-link"
+              >
+                {{ campaign.name }}
+              </RouterLink>
             </TableCell>
 
             <TableCell>{{ campaign.subject }}</TableCell>

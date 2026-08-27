@@ -2,6 +2,7 @@ import { request } from '@/apiService/httpClient';
 
 import createCampaignAdapter from './adapters/createCampaignAdapter';
 import deleteCampaignAdapter from './adapters/deleteCampaignAdapter';
+import startCampaignAdapter from './adapters/startCampaignAdapter';
 import campaignsItemAdapter from './adapters/campaignsItemAdapter';
 import campaignsListAdapter from './adapters/campaignsListAdapter';
 import type {
@@ -13,6 +14,8 @@ import type {
   GetCampaignInput,
   GetCampaignResponseWire,
   ListCampaignsResponseWire,
+  StartCampaignInput,
+  StartCampaignResponseWire,
 } from './campaignsApiTypes';
 
 export const campaignsApiService = {
@@ -54,6 +57,21 @@ export const campaignsApiService = {
 
     if (campaignId === undefined) {
       throw new Error('Не удалось удалить кампанию');
+    }
+
+    return campaignId;
+  },
+
+  startCampaign: async (input: StartCampaignInput): Promise<number> => {
+    const response = await request<StartCampaignResponseWire>(
+      'POST',
+      `/campaigns/${input.id}/start`,
+    );
+
+    const campaignId = startCampaignAdapter.adaptResponseData(response);
+
+    if (campaignId === undefined) {
+      throw new Error('Не удалось запустить рассылку');
     }
 
     return campaignId;
