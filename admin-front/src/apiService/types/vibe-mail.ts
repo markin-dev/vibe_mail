@@ -255,7 +255,7 @@ export interface components {
          * CampaignStatus
          * @enum {string}
          */
-        CampaignStatus: "draft" | "running" | "paused" | "done" | "error";
+        CampaignStatus: "new" | "in_progress" | "done" | "error";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */

@@ -71,7 +71,7 @@
             <TableCell>{{ campaign.subject }}</TableCell>
 
             <TableCell>
-              <Badge :variant="statusVariant(campaign.status)">
+              <Badge :class="statusClass(campaign.status)">
                 {{ statusLabel(campaign.status) }}
               </Badge>
             </TableCell>
@@ -95,7 +95,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 
-import { Badge, type BadgeVariants } from '@/components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -115,27 +115,25 @@ const { campaigns, isLoading, getCampaigns: load } = useGetCampaigns();
 onMounted(load);
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {
-  draft: 'Черновик',
-  running: 'Запущена',
-  paused: 'Пауза',
+  new: 'Новая',
+  in_progress: 'В работе',
   done: 'Завершена',
   error: 'Ошибка',
 };
 
-const STATUS_VARIANT: Record<CampaignStatus, BadgeVariants['variant']> = {
-  draft: 'outline',
-  running: 'default',
-  paused: 'secondary',
-  done: 'secondary',
-  error: 'destructive',
+const STATUS_CLASS: Record<CampaignStatus, string> = {
+  new: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
+  done: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+  error: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 };
 
 function statusLabel(status: CampaignStatus): string {
   return STATUS_LABEL[status];
 }
 
-function statusVariant(status: CampaignStatus): BadgeVariants['variant'] {
-  return STATUS_VARIANT[status];
+function statusClass(status: CampaignStatus): string {
+  return STATUS_CLASS[status];
 }
 
 function formatDate(value: string): string {

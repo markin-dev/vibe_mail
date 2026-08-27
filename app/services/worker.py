@@ -1,9 +1,9 @@
 """Фоновый поток отправки писем.
 
 Запускается вместе с приложением (через lifespan) и последовательно обрабатывает
-кампании со статусом RUNNING: берёт pending-получателей, отправляет через
+кампании со статусом IN_PROGRESS: берёт pending-получателей, отправляет через
 MailSender, обновляет статусы в БД. БД — источник правды, поэтому при старте
-процесса «зависшие» running-кампании подхватываются автоматически (возобновление).
+процесса «зависшие» in_progress-кампании подхватываются автоматически (возобновление).
 """
 import logging
 import threading
@@ -45,7 +45,7 @@ class Worker:
         while not self._stop.is_set():
             try:
                 with SessionLocal() as db:
-                    running = db.query(Campaign).filter_by(status=CampaignStatus.RUNNING).all()
+                    running = db.query(Campaign).filter_by(status=CampaignStatus.IN_PROGRESS).all()
                     for camp in running:
                         pending = (
                             db.query(Recipient)

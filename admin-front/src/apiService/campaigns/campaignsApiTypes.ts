@@ -5,7 +5,7 @@ export type CampaignReadWire = components['schemas']['CampaignRead'];
 export type ListCampaignsResponseWire = components['schemas']['ListCampaignReadEnvelope'];
 export type GetCampaignResponseWire = components['schemas']['CampaignReadEnvelope'];
 
-export type CampaignStatus = 'draft' | 'running' | 'paused' | 'done' | 'error';
+export type CampaignStatus = 'new' | 'in_progress' | 'done' | 'error';
 
 export interface CampaignTotals {
   sent: number;

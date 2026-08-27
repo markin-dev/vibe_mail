@@ -15,9 +15,8 @@ def _now() -> datetime.datetime:
 
 
 class CampaignStatus(enum.StrEnum):
-    DRAFT = "draft"
-    RUNNING = "running"
-    PAUSED = "paused"
+    NEW = "new"
+    IN_PROGRESS = "in_progress"
     DONE = "done"
     ERROR = "error"
 
@@ -37,7 +36,7 @@ class Campaign(Base):
     subject: Mapped[str] = mapped_column(String(1024))
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[CampaignStatus] = mapped_column(
-        SAEnum(CampaignStatus), default=CampaignStatus.DRAFT
+        SAEnum(CampaignStatus), default=CampaignStatus.NEW
     )
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=_now)
 

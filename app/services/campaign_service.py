@@ -24,7 +24,7 @@ def create_campaign(db: Session, data: CampaignCreate) -> Campaign:
         name=data.name,
         subject=data.subject,
         body=data.body,
-        status=CampaignStatus.DRAFT,
+        status=CampaignStatus.NEW,
     )
     db.add(campaign)
     db.commit()

@@ -88,12 +88,12 @@ def start_campaign(
     problems = rs.validate_campaign_ready(db, camp)
     if problems:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"errors": problems})
-    cs.set_status(db, camp, CampaignStatus.RUNNING)
+    cs.set_status(db, camp, CampaignStatus.IN_PROGRESS)
     return ok(MessageOut(detail="Рассылка запущена", campaign_id=camp.id))
 
 
 @router.post("/{campaign_id}/stop", response_model=MessageOutEnvelope)
 def stop_campaign(campaign_id: int, db: Session = Depends(get_db)):
     camp = cs.get_campaign(db, campaign_id)
-    cs.set_status(db, camp, CampaignStatus.PAUSED)
-    return ok(MessageOut(detail="Рассылка приостановлена", campaign_id=camp.id))
+    cs.set_status(db, camp, CampaignStatus.NEW)
+    return ok(MessageOut(detail="Рассылка остановлена", campaign_id=camp.id))
