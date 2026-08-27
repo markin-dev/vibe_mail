@@ -8,7 +8,7 @@
         Кампании
       </h1>
 
-      <RouterLink to="/campaigns/create">
+      <RouterLink to="/create-campaign">
         <Button
           data-test="create-campaign-button"
           variant="outline"

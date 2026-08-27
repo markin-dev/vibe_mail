@@ -1,11 +1,11 @@
 import { request } from '@/apiService/httpClient';
 
-import campaignsCreateAdapter from './adapters/campaignsCreateAdapter';
+import createCampaignAdapter from './adapters/createCampaignAdapter';
 import campaignsItemAdapter from './adapters/campaignsItemAdapter';
 import campaignsListAdapter from './adapters/campaignsListAdapter';
 import type {
   Campaign,
-  CampaignCreateInput,
+  CreateCampaignInput,
   CreateCampaignResponseWire,
   GetCampaignInput,
   GetCampaignResponseWire,
@@ -25,14 +25,14 @@ export const campaignsApiService = {
     return campaignsItemAdapter.adaptResponseData(response);
   },
 
-  createCampaign: async (input: CampaignCreateInput): Promise<Campaign> => {
+  createCampaign: async (input: CreateCampaignInput): Promise<Campaign> => {
     const response = await request<CreateCampaignResponseWire>(
       'POST',
       '/campaigns',
-      campaignsCreateAdapter.adaptParams(input),
+      createCampaignAdapter.adaptParams(input),
     );
 
-    const campaign = campaignsCreateAdapter.adaptResponseData(response);
+    const campaign = createCampaignAdapter.adaptResponseData(response);
 
     if (!campaign) {
       throw new Error('Не удалось создать кампанию');

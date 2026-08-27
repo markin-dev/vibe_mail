@@ -201,18 +201,6 @@ export interface components {
             file: string;
         };
         /**
-         * CampaignCreate
-         * @description Тело запроса на создание кампании.
-         */
-        CampaignCreate: {
-            /** Name */
-            name: string;
-            /** Subject */
-            subject: string;
-            /** Body */
-            body: string;
-        };
-        /**
          * CampaignRead
          * @description Ответ: данные кампании + необязательные счётчики прогресса.
          */
@@ -256,6 +244,18 @@ export interface components {
          * @enum {string}
          */
         CampaignStatus: "new" | "in_progress" | "done" | "error";
+        /**
+         * CreateCampaign
+         * @description Тело запроса на создание кампании.
+         */
+        CreateCampaign: {
+            /** Name */
+            name: string;
+            /** Subject */
+            subject: string;
+            /** Body */
+            body: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -453,7 +453,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CampaignCreate"];
+                "application/json": components["schemas"]["CreateCampaign"];
             };
         };
         responses: {

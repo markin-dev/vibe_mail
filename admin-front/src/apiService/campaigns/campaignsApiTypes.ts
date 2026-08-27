@@ -5,12 +5,12 @@ export type CampaignReadWire = components['schemas']['CampaignRead'];
 export type ListCampaignsResponseWire = components['schemas']['ListCampaignReadEnvelope'];
 export type GetCampaignResponseWire = components['schemas']['CampaignReadEnvelope'];
 
-export type CampaignCreateWire = components['schemas']['CampaignCreate'];
+export type CreateCampaignWire = components['schemas']['CreateCampaign'];
 export type CreateCampaignResponseWire = components['schemas']['CampaignReadEnvelope'];
 
 export type CampaignStatus = 'new' | 'in_progress' | 'done' | 'error';
 
-export interface CampaignCreateInput {
+export interface CreateCampaignInput {
   name: string;
   subject: string;
   body: string;

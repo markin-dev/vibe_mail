@@ -15,11 +15,11 @@ from app.db.models import (
     Recipient,
     RecipientStatus,
 )
-from app.schemas.campaign import CampaignCreate
+from app.schemas.campaign import CreateCampaign
 from app.services.recipient_service import _safe_filename
 
 
-def create_campaign(db: Session, data: CampaignCreate) -> Campaign:
+def create_campaign(db: Session, data: CreateCampaign) -> Campaign:
     campaign = Campaign(
         name=data.name,
         subject=data.subject,

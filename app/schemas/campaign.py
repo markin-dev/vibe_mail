@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.db.models import CampaignStatus
 
 
-class CampaignCreate(BaseModel):
+class CreateCampaign(BaseModel):
     """Тело запроса на создание кампании."""
 
     name: str

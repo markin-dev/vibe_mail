@@ -18,8 +18,8 @@ export default createRouter({
     },
 
     {
-      path: '/campaigns/create',
-      name: 'campaigns-create',
+      path: '/create-campaign',
+      name: 'create-campaign',
       component: CreateCampaignPage
     },
 

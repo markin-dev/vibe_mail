@@ -2,7 +2,7 @@ import { apiService } from '@/apiService';
 import useApiService from '@/composables/useApiService';
 import type {
   Campaign,
-  CampaignCreateInput,
+  CreateCampaignInput,
 } from '@/apiService/campaigns/campaignsApiTypes';
 
 export const ERROR_MESSAGE = 'Не удалось создать кампанию';
@@ -14,7 +14,7 @@ export default function useCreateCampaign() {
     execute,
     onDone,
     onError,
-  } = useApiService<Campaign, [CampaignCreateInput]>(
+  } = useApiService<Campaign, [CreateCampaignInput]>(
     apiService.campaigns.createCampaign,
     { errorMessage: ERROR_MESSAGE },
   );

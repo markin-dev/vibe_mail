@@ -1,13 +1,13 @@
 import campaignsItemAdapter from './campaignsItemAdapter';
 import type {
   Campaign,
-  CampaignCreateInput,
-  CampaignCreateWire,
+  CreateCampaignInput,
+  CreateCampaignWire,
   CreateCampaignResponseWire,
 } from '../campaignsApiTypes';
 
-const createAdapter = {
-  adaptParams: (input: CampaignCreateInput): CampaignCreateWire => ({
+const createCampaignAdapter = {
+  adaptParams: (input: CreateCampaignInput): CreateCampaignWire => ({
     name: input.name,
     subject: input.subject,
     body: input.body,
@@ -17,4 +17,4 @@ const createAdapter = {
     campaignsItemAdapter.adaptResponseData(response),
 };
 
-export default createAdapter;
+export default createCampaignAdapter;

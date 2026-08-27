@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_worker
 from app.db.models import CampaignStatus
 from app.schemas.campaign import (
-    CampaignCreate,
     CampaignRead,
+    CreateCampaign,
     ImportCsvResult,
     MessageOut,
 )
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=CampaignReadEnvelope)
-def create_campaign(data: CampaignCreate, db: Session = Depends(get_db)):
+def create_campaign(data: CreateCampaign, db: Session = Depends(get_db)):
     return ok(cs.create_campaign(db, data))
 
 

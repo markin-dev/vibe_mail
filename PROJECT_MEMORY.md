@@ -119,7 +119,7 @@ PROJECT_MEMORY.md    # эта память
   Pipenv-конфиг (`Pipfile`, `Pipfile.lock`), `requirements.txt` удалён.
 - [x] **Шаг 2** — `app/db/` (base, session, models) + `app/__main__.py`. Таблицы
   `campaigns` / `recipients` / `attachments` создаются через `create_all`.
-- [x] **Шаг 3** — `app/schemas/` (campaign.py, recipient.py): CampaignCreate/Read,
+- [x] **Шаг 3** — `app/schemas/` (campaign.py, recipient.py): CreateCampaign/Read,
   RecipientCreate/Read, RecipientsBulk, AttachmentRead, MessageOut.
 - [x] **Шаг 4** — `app/services/mail_sender.py`: класс `MailSender` (connect, build,
   retry 2/4/8 с, is_temporary). Не зависит от БД.
