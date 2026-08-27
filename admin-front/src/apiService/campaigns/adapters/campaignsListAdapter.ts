@@ -15,7 +15,6 @@ const adaptTotals = (totals: CampaignReadWire['totals']): CampaignTotals | null 
     sent: Number(totals.sent ?? 0),
     failed: Number(totals.failed ?? 0),
     pending: Number(totals.pending ?? 0),
-    skipped: Number(totals.skipped ?? 0),
     total: Number(totals.total ?? 0),
   };
 };

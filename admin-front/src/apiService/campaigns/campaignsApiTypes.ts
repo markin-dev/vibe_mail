@@ -20,7 +20,6 @@ export interface CampaignTotals {
   sent: number;
   failed: number;
   pending: number;
-  skipped: number;
   total: number;
 }
 

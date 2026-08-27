@@ -54,7 +54,6 @@ def get_progress(db: Session, campaign: Campaign) -> dict:
         "sent": counts.get("sent", 0),
         "failed": counts.get("failed", 0),
         "pending": counts.get("pending", 0),
-        "skipped": counts.get("skipped", 0),
         "total": sum(counts.values()),
     }
 

@@ -281,7 +281,6 @@ const progressTotals = computed(() => {
     sent: list.filter((recipient) => recipient.status === 'sent').length,
     failed: list.filter((recipient) => recipient.status === 'failed').length,
     pending: list.filter((recipient) => recipient.status === 'pending').length,
-    skipped: list.filter((recipient) => recipient.status === 'skipped').length,
     total: list.length,
   };
 });
@@ -417,14 +416,12 @@ const RECIPIENT_STATUS_LABEL: Record<RecipientStatus, string> = {
   pending: 'Ожидает',
   sent: 'Отправлено',
   failed: 'Ошибка',
-  skipped: 'Пропущено',
 };
 
 const RECIPIENT_STATUS_CLASS: Record<RecipientStatus, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
   sent: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   failed: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  skipped: 'bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-300',
 };
 
 function recipientStatusLabel(status: RecipientStatus): string {

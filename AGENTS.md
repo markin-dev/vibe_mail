@@ -80,7 +80,7 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   списком, ничего не шлём.
 - **Возобновление**: кампании со статусом `IN_PROGRESS` подхватываются воркером при
   старте процесса; получатели со статусом `PENDING` заново отправляются. Статусы
-  получателей в БД (`PENDING`/`SENT`/`FAILED`/`SKIPPED`) заменяют старый `sent.log`.
+  получателей в БД (`PENDING`/`SENT`/`FAILED`) заменяют старый `sent.log`.
 - **Статусы кампании** (`CampaignStatus`, `app/db/models.py`): `NEW` (new, при создании) →
   `start` переводит в `IN_PROGRESS` (in_progress); `stop` возвращает в `NEW`; воркер по
   завершении всех получателей ставит `DONE` (done), а если хотя бы у одного получателя

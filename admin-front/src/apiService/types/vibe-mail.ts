@@ -394,7 +394,7 @@ export interface components {
          * RecipientStatus
          * @enum {string}
          */
-        RecipientStatus: "pending" | "sent" | "failed" | "skipped";
+        RecipientStatus: "pending" | "sent" | "failed";
         /**
          * RecipientsBulk
          * @description Массовое добавление получателей.

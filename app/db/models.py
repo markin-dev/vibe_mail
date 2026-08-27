@@ -26,7 +26,6 @@ class RecipientStatus(enum.StrEnum):
     PENDING = "pending"
     SENT = "sent"
     FAILED = "failed"
-    SKIPPED = "skipped"
 
 
 class Campaign(Base):

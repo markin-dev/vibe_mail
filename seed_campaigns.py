@@ -25,7 +25,6 @@ from app.db.models import (
 )
 from app.db.session import SessionLocal, engine
 
-
 random.seed(1234)
 
 FAKE_NAMES: list[str] = [
@@ -49,7 +48,7 @@ RECIPIENT_PLAN: dict[CampaignStatus, tuple[int, list[RecipientStatus]]] = {
     CampaignStatus.IN_PROGRESS: (1, [RecipientStatus.PENDING]),
     CampaignStatus.DONE: (
         1,
-        [RecipientStatus.SENT, RecipientStatus.FAILED, RecipientStatus.SKIPPED],
+        [RecipientStatus.SENT, RecipientStatus.FAILED],
     ),
     CampaignStatus.ERROR: (1, [RecipientStatus.FAILED]),
 }
@@ -65,7 +64,7 @@ def _build_recipients(status: CampaignStatus, index: int) -> list[Recipient]:
     """Фейковые получатели для кампании с учётом её статуса.
 
     `index` — порядковый номер кампании в SEED, чтобы у завершённых кампаний
-    получатели получали разные статусы (SENT/FAILED/SKIPPED) для разнообразия
+    получатели получали разные статусы (SENT/FAILED) для разнообразия
     в логе.
     """
     count, statuses = RECIPIENT_PLAN[status]
@@ -76,7 +75,7 @@ def _build_recipients(status: CampaignStatus, index: int) -> list[Recipient]:
             statuses[index % len(statuses)] if len(statuses) > 1
             else statuses[i % len(statuses)]
         )
-        is_finished = recipient_status in (RecipientStatus.SENT, RecipientStatus.SKIPPED)
+        is_finished = recipient_status == RecipientStatus.SENT
         sent_at = _days_ago(random.randint(0, 30)) if is_finished else None
         error = (
             "Ошибка SMTP: таймаут соединения с сервером"
