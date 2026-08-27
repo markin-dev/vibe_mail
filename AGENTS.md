@@ -63,7 +63,7 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 | `GET` | `/api/health` | здоровье |
 | `POST` | `/api/campaigns` | создать кампанию |
 | `GET` | `/api/campaigns` | список + прогресс |
-| `GET` | `/api/campaigns/{id}` | кампания + счётчики |
+| `GET`  | `/api/campaigns/{id}` | кампания + счётчики |
 | `POST` | `/api/campaigns/{id}/recipients` | добавить получателей (атомарно) |
 | `GET` | `/api/campaigns/{id}/recipients` | список получателей |
 | `POST` | `/api/campaigns/{id}/import-csv` | импорт CSV (`имя,email,файл`) |

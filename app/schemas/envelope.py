@@ -14,7 +14,11 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.schemas.campaign import CampaignRead, ImportCsvResult, MessageOut
+from app.schemas.campaign import (
+    CampaignRead,
+    ImportCsvResult,
+    MessageOut,
+)
 from app.schemas.recipient import AttachmentRead, RecipientRead
 
 

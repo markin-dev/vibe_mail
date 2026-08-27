@@ -22,8 +22,8 @@
             {{ campaign.name }}
           </h1>
 
-          <Badge :class="statusClass(campaign.status)">
-            {{ statusLabel(campaign.status) }}
+          <Badge :class="statusClass(currentStatus)">
+            {{ statusLabel(currentStatus) }}
           </Badge>
         </div>
 
@@ -34,16 +34,16 @@
       </div>
 
       <Button
-        :disabled="isStarting || campaign?.status === 'in_progress'"
+        :disabled="buttonLoading"
         data-test="start-button"
         @click="onStart"
       >
         <LoaderCircle
-          v-if="isStarting"
+          v-if="buttonLoading"
           class="h-4 w-4 animate-spin"
         />
 
-        {{ isStarting ? 'Запуск…' : 'Запустить рассылку' }}
+        {{ buttonLabel }}
       </Button>
     </div>
 
@@ -85,19 +85,16 @@
         </p>
       </div>
 
-      <div
-        v-if="campaign.totals"
-        class="sm:col-span-2"
-      >
+      <div class="sm:col-span-2">
         <p class="text-sm text-muted-foreground">
           Прогресс
         </p>
 
         <p class="font-medium">
-          Отправлено: {{ campaign.totals.sent }} /
-          Всего: {{ campaign.totals.total }} /
-          Ошибки: {{ campaign.totals.failed }} /
-          Ожидают: {{ campaign.totals.pending }}
+          Отправлено: {{ progressTotals.sent }} /
+          Всего: {{ progressTotals.total }} /
+          Ошибки: {{ progressTotals.failed }} /
+          Ожидают: {{ progressTotals.pending }}
         </p>
       </div>
     </div>
@@ -106,10 +103,15 @@
       data-test="recipients-log"
       class="rounded-md border"
     >
-      <div class="border-b p-4">
+      <div class="flex items-center gap-2 border-b p-4">
         <h2 class="text-lg font-semibold">
           Лог отправленных писем
         </h2>
+
+        <LoaderCircle
+          v-if="isLoadingRecipients && !isInitRecipientsLoading"
+          class="h-4 w-4 animate-spin text-muted-foreground"
+        />
       </div>
 
       <Table>
@@ -125,7 +127,7 @@
         </TableHeader>
 
         <TableBody>
-          <template v-if="isLoadingRecipients">
+          <template v-if="isInitRecipientsLoading">
             <TableRow
               v-for="n in 3"
               :key="n"
@@ -181,7 +183,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ArrowLeft, LoaderCircle } from '@lucide/vue';
@@ -220,7 +222,17 @@ const {
   isLoading: isLoadingRecipients,
   recipients,
   getRecipients,
+  onDone: onRecipientsDone,
+  onError: onRecipientsError,
 } = useGetRecipients();
+
+const isInitRecipientsLoading = ref(true);
+onRecipientsDone(() => {
+  isInitRecipientsLoading.value = false;
+});
+onRecipientsError(() => {
+  isInitRecipientsLoading.value = false;
+});
 
 const {
   isLoading: isStarting,
@@ -229,6 +241,36 @@ const {
 } = useStartCampaign();
 
 const recipientsList = computed(() => recipients.value ?? []);
+
+const progressTotals = computed(() => {
+  const list = recipientsList.value;
+
+  return {
+    sent: list.filter((recipient) => recipient.status === 'sent').length,
+    failed: list.filter((recipient) => recipient.status === 'failed').length,
+    pending: list.filter((recipient) => recipient.status === 'pending').length,
+    skipped: list.filter((recipient) => recipient.status === 'skipped').length,
+    total: list.length,
+  };
+});
+
+const effectiveStatus = computed(() => campaign.value?.status);
+const currentStatus = computed<CampaignStatus>(() => effectiveStatus.value ?? 'new');
+
+const buttonLoading = computed(
+  () => isStarting.value || currentStatus.value === 'in_progress',
+);
+const buttonLabel = computed(() => {
+  if (isStarting.value) {
+    return 'Запуск…';
+  }
+
+  if (currentStatus.value === 'in_progress') {
+    return 'Рассылка запущена';
+  }
+
+  return 'Запустить рассылку';
+});
 
 const POLL_INTERVAL = 3000;
 let pollTimer: number | undefined;
@@ -251,9 +293,15 @@ function pollOnce() {
   }
 
   pollInFlight = true;
-  load().finally(() => {
-    pollInFlight = false;
-  });
+  Promise.all([
+    getCampaign({ id: campaignId.value }),
+    getRecipients({ campaignId: campaignId.value }),
+  ])
+    .then(() => undefined)
+    .catch(() => undefined)
+    .finally(() => {
+      pollInFlight = false;
+    });
 }
 
 function startPolling() {
@@ -283,12 +331,20 @@ onDone(() => {
 });
 
 watch(
-  () => campaign.value?.status,
+  effectiveStatus,
   (status) => {
     if (status === 'in_progress') {
       startPolling();
-    } else {
-      stopPolling();
+      return;
+    }
+
+    const wasPolling = pollTimer !== undefined;
+    stopPolling();
+    if (wasPolling) {
+      Promise.all([
+        getCampaign({ id: campaignId.value }),
+        getRecipients({ campaignId: campaignId.value }),
+      ]);
     }
   },
   { immediate: true },

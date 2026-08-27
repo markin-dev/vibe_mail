@@ -33,7 +33,8 @@ export interface paths {
         get: operations["get_campaign_api_campaigns__campaign_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Campaign */
+        delete: operations["delete_campaign_api_campaigns__campaign_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -495,6 +496,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CampaignReadEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_campaign_api_campaigns__campaign_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOutEnvelope"];
                 };
             };
             /** @description Validation Error */
