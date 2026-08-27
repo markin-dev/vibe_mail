@@ -244,7 +244,7 @@ export interface components {
          * CampaignStatus
          * @enum {string}
          */
-        CampaignStatus: "new" | "in_progress" | "done" | "error";
+        CampaignStatus: "new" | "in_progress" | "done" | "done_with_errors" | "error";
         /**
          * CreateCampaign
          * @description Тело запроса на создание кампании.

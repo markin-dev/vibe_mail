@@ -83,9 +83,12 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   получателей в БД (`PENDING`/`SENT`/`FAILED`/`SKIPPED`) заменяют старый `sent.log`.
 - **Статусы кампании** (`CampaignStatus`, `app/db/models.py`): `NEW` (new, при создании) →
   `start` переводит в `IN_PROGRESS` (in_progress); `stop` возвращает в `NEW`; воркер по
-  завершении всех получателей ставит `DONE` (done); `ERROR` (error) — статус ошибки
-  (предусмотрен enum'ом). В БД хранится имя enum (`NEW`/`IN_PROGRESS`/...), в API-ответе —
-  значение (`new`/`in_progress`/...).
+  завершении всех получателей ставит `DONE` (done), а если хотя бы у одного получателя
+  статус `FAILED` — `DONE_WITH_ERRORS` (done_with_errors, «Завершена с ошибками»);
+  `ERROR` (error) — зарезервированный статус фатального сбоя кампании (напр. сломан
+  SMTP/валидация), сейчас нигде не выставляется. И `DONE`, и `DONE_WITH_ERRORS`
+  терминальные — воркер при старте подхватывает только `IN_PROGRESS`. В БД хранится имя
+  enum (`NEW`/`IN_PROGRESS`/...), в API-ответе — значение (`new`/`in_progress`/...).
 - **Ретраи**: временные ошибки — до 3 попыток с паузой 2/4/8 с и переподключением
   (`mail_sender._is_temporary`); постоянные — `failed`, рассылка продолжается.
 - **Фоновая отправка**: `start` отдаёт `202`, отправляет отдельный поток

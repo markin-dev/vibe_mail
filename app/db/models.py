@@ -18,6 +18,7 @@ class CampaignStatus(enum.StrEnum):
     NEW = "new"
     IN_PROGRESS = "in_progress"
     DONE = "done"
+    DONE_WITH_ERRORS = "done_with_errors"
     ERROR = "error"
 
 

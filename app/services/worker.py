@@ -54,9 +54,23 @@ class Worker:
                             .all()
                         )
                         if not pending:
-                            camp.status = CampaignStatus.DONE
+                            has_failed = (
+                                db.query(Recipient)
+                                .filter_by(campaign_id=camp.id, status=RecipientStatus.FAILED)
+                                .first()
+                                is not None
+                            )
+                            camp.status = (
+                                CampaignStatus.DONE_WITH_ERRORS
+                                if has_failed
+                                else CampaignStatus.DONE
+                            )
                             db.commit()
-                            log.info("Кампания %s завершена (все письма обработаны)", camp.id)
+                            log.info(
+                                "Кампания %s завершена (%s)",
+                                camp.id,
+                                "есть ошибки отправки" if has_failed else "все письма обработаны",
+                            )
                             continue
 
                         for r in pending:

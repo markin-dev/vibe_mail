@@ -8,7 +8,7 @@ export type GetCampaignResponseWire = components['schemas']['CampaignReadEnvelop
 export type CreateCampaignWire = components['schemas']['CreateCampaign'];
 export type CreateCampaignResponseWire = components['schemas']['CampaignReadEnvelope'];
 
-export type CampaignStatus = 'new' | 'in_progress' | 'done' | 'error';
+export type CampaignStatus = 'new' | 'in_progress' | 'done' | 'done_with_errors' | 'error';
 
 export interface CreateCampaignInput {
   name: string;
