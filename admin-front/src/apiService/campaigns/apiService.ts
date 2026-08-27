@@ -1,12 +1,15 @@
 import { request } from '@/apiService/httpClient';
 
 import createCampaignAdapter from './adapters/createCampaignAdapter';
+import deleteCampaignAdapter from './adapters/deleteCampaignAdapter';
 import campaignsItemAdapter from './adapters/campaignsItemAdapter';
 import campaignsListAdapter from './adapters/campaignsListAdapter';
 import type {
   Campaign,
   CreateCampaignInput,
   CreateCampaignResponseWire,
+  DeleteCampaignInput,
+  DeleteCampaignResponseWire,
   GetCampaignInput,
   GetCampaignResponseWire,
   ListCampaignsResponseWire,
@@ -39,6 +42,21 @@ export const campaignsApiService = {
     }
 
     return campaign;
+  },
+
+  deleteCampaign: async (input: DeleteCampaignInput): Promise<number> => {
+    const response = await request<DeleteCampaignResponseWire>(
+      'DELETE',
+      `/campaigns/${input.id}`,
+    );
+
+    const campaignId = deleteCampaignAdapter.adaptResponseData(response);
+
+    if (campaignId === undefined) {
+      throw new Error('Не удалось удалить кампанию');
+    }
+
+    return campaignId;
   },
 };
 

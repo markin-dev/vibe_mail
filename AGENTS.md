@@ -12,7 +12,7 @@
 
 ## Что это
 HTTP-API сервис массовой рассылки писем с индивидуальными вложениями. Клиент
-(позже — фронтенд) создаёт кампании, добавляет получателей и вложения, запускает
+(фронтенд `admin-front`) создаёт кампании, добавляет получателей и вложения, запускает
 рассылку; отправка идёт в фоне, прогресс виден по статусам в БД.
 
 ## Стек и конвенции
@@ -37,7 +37,7 @@ app/
   __main__.py        # python -m app -> uvicorn.run("app.main:app", ...)
   core/              # config.py (Settings), constants.py (EMAIL_RE), logging.py
   db/                # base.py (Base), session.py (engine, get_db), models.py
-  schemas/           # campaign.py, recipient.py (pydantic-модели)
+  schemas/           # campaign.py, recipient.py, envelope.py (pydantic-модели + обёртка ApiEnvelope)
   services/          # mail_sender.py (MailSender), recipient_service.py,
                      # campaign_service.py, worker.py
   api/               # deps.py, campaigns.py, recipients.py, attachments.py, health.py
@@ -69,16 +69,23 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 | `POST` | `/api/campaigns/{id}/import-csv` | импорт CSV (`имя,email,файл`) |
 | `POST` | `/api/campaigns/{id}/recipients/{rid}/attachments` | загрузить вложение |
 | `POST` | `/api/campaigns/{id}/start` | запуск рассылки (202) |
-| `POST` | `/api/campaigns/{id}/stop` | пауза |
-| `DELETE` | `/api/recipients/{rid}` | удалить получателя |
+| `POST` | `/api/campaigns/{id}/stop` | пауза (статус → NEW) |
+| `DELETE` | `/api/campaigns/{id}` | удалить кампанию (200, MessageOutEnvelope) |
+| `DELETE` | `/api/recipients/{rid}` | удалить получателя (204, без тела) |
 
 ## Ключевые инварианты (сохранять)
 - **Валидация ДО отправки**: `recipient_service.validate_campaign_ready` — синтаксис
   email (`EMAIL_RE` из `core/constants.py`), дубликаты в кампании, наличие/читаемость
   файлов, лимит вложений 25 МБ × 1.37. При ошибке `start` возвращает `400` со
   списком, ничего не шлём.
-- **Возобновление**: статусы получателей в БД (`pending`/`sent`/`failed`) заменяют
-  старый `sent.log`. Воркер при старте процесса подхватывает «зависшие» `RUNNING`.
+- **Возобновление**: кампании со статусом `IN_PROGRESS` подхватываются воркером при
+  старте процесса; получатели со статусом `PENDING` заново отправляются. Статусы
+  получателей в БД (`PENDING`/`SENT`/`FAILED`/`SKIPPED`) заменяют старый `sent.log`.
+- **Статусы кампании** (`CampaignStatus`, `app/db/models.py`): `NEW` (new, при создании) →
+  `start` переводит в `IN_PROGRESS` (in_progress); `stop` возвращает в `NEW`; воркер по
+  завершении всех получателей ставит `DONE` (done); `ERROR` (error) — статус ошибки
+  (предусмотрен enum'ом). В БД хранится имя enum (`NEW`/`IN_PROGRESS`/...), в API-ответе —
+  значение (`new`/`in_progress`/...).
 - **Ретраи**: временные ошибки — до 3 попыток с паузой 2/4/8 с и переподключением
   (`mail_sender._is_temporary`); постоянные — `failed`, рассылка продолжается.
 - **Фоновая отправка**: `start` отдаёт `202`, отправляет отдельный поток
@@ -91,7 +98,7 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 - `schemas/*` — pydantic-модели запрос/ответ (`from_attributes=True`).
 - `services/mail_sender.py` — `MailSender`: connect/build/retry; **не знает про БД**.
 - `services/recipient_service.py` — валидация, добавление, вложения, готовность.
-- `services/campaign_service.py` — CRUD кампаний, прогресс, импорт CSV.
+- `services/campaign_service.py` — CRUD кампаний (создание/чтение/смена статуса/удаление), прогресс, импорт CSV.
 - `services/worker.py` — фоновый поток отправки.
 - `api/*` — роутеры FastAPI; `deps.py` даёт `get_db` и `get_worker`.
 
@@ -112,13 +119,14 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   из `.env`. **Auth** — нет. **Миграции** — Alembic не подключён, таблицы создаются
   `Base.metadata.create_all` в `lifespan`.
 - **Отправка** — фоновый поток `services/worker.py`, стартует в `lifespan`; подхватывает
-  «зависшие» `RUNNING`. Статусы получателей в БД — механизм возобновления. Валидация ДО
+  «зависшие» кампании со статусом `IN_PROGRESS`. Статусы получателей в БД — механизм
+  возобновления. Валидация ДО
   отправки — `recipient_service.validate_campaign_ready` (синтаксис email, дубликаты,
   размер вложений); при ошибке `start` отдаёт 400. Ретраи в `mail_sender` (2/4/8 с для
   временных ошибок).
 
 ### Фронтенд (admin-front)
-- **Стек:** Vite 8 + Vue 3.5 (`<script setup>` + Composition API) + TypeScript 6,
+- **Стек:** Vite 8 + Vue 3.5 (`<script setup>` + Composition API) + TypeScript 5.x (закреплён, см. примечание в конце раздела),
   shadcn-vue поверх Tailwind v4. Node 24 (nvm). Глобальные правила `~/.claude/CLAUDE.md`
   (TS/Vue/Composables/тесты/импорты) **применяются**.
 - **Слой API — `src/apiService/`** (фасадная архитектура с адаптерами):
@@ -129,13 +137,15 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
     `openapi-typescript` (скрипт `npm run generate:api`, файл в `.eslintignore`).
     Wire-типы берутся отсюда (`components['schemas']`).
   - `index.ts` — **корневой баррель**: собирает доменные сервисы в единый фасад
-    `apiService` (использование: `apiService.campaigns.getCampaigns()`).
+    `apiService` (использование: `apiService.campaigns.getCampaigns()`, `.createCampaign()`,
+    `.deleteCampaign()`).
   - **На каждый домен — своя папка** (например, `campaigns/`):
     - `campaignsApiTypes.ts` — доменные типы (camelCase, без обёртки) + wire-типы
       (из сгенерированной схемы).
     - `apiService.ts` — методы домена: вызывают `httpClient`, прогоняют параметры/ответ
       через адаптеры, возвращают доменные данные.
-    - `adapters/` — `campaignsListAdapter.ts`, `campaignsItemAdapter.ts` и т.д. Каждый
+    - `adapters/` — для чтения: `campaignsListAdapter.ts`, `campaignsItemAdapter.ts`; для
+      действий — verb-first: `createCampaignAdapter.ts`, `deleteCampaignAdapter.ts`. Каждый
       дефолт-экспорт = `{ adaptParams, adaptResponseData }`: `adaptParams` маппит доменные
       входные данные → wire (тело/query), `adaptResponseData` снимает обёртку
       `{status,result,error}` и маппит `result` → доменные типы (snake_case → camelCase).
@@ -146,7 +156,8 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   `composables/`. Доменные компосаблы, работающие с API, лежат в `src/composables/data/` и
   строятся поверх `useApiService` + фасада `apiService`: в `useApiService` передаётся ссылка
   на метод API-сервиса, а название компосабла повторяет метод, напр. `getCampaigns` →
-  `useGetCampaigns` (`campaigns: data`, `getCampaigns: execute`).
+  `useGetCampaigns` (`campaigns: data`, `getCampaigns: execute`); действия — verb-first:
+  `createCampaign` → `useCreateCampaign`, `deleteCampaign` → `useDeleteCampaign`.
 - **Страницы/компоненты** (`src/pages`, `src/components`): порядок блоков в `.vue` —
   `<template>` → `<script>` → `<style>`; UI только из shadcn (`@/components/ui`). Поиск в
   тестах — по `data-test`.

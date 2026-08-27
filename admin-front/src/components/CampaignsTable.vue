@@ -12,6 +12,7 @@
           <TableHead>Статус</TableHead>
           <TableHead>Прогресс</TableHead>
           <TableHead>Создана</TableHead>
+          <TableHead>Действия</TableHead>
         </TableRow>
       </TableHeader>
 
@@ -28,13 +29,14 @@
             <TableCell><Skeleton class="h-5 w-20 rounded-full" /></TableCell>
             <TableCell><Skeleton class="h-4 w-16" /></TableCell>
             <TableCell><Skeleton class="h-4 w-24" /></TableCell>
+            <TableCell><Skeleton class="h-8 w-8 rounded-md" /></TableCell>
           </TableRow>
         </template>
 
         <template v-else>
           <TableEmpty
             v-if="props.campaigns.length === 0"
-            :colspan="6"
+            :colspan="7"
           >
             Кампании не найдены
           </TableEmpty>
@@ -68,16 +70,73 @@
             </TableCell>
 
             <TableCell>{{ formatDate(campaign.createdAt) }}</TableCell>
+
+            <TableCell>
+              <Button
+                :aria-label="`Удалить кампанию ${campaign.name}`"
+                variant="ghost"
+                size="icon"
+                data-test="delete-button"
+                @click="openDialog(campaign)"
+              >
+                <Trash class="h-4 w-4" />
+              </Button>
+            </TableCell>
           </TableRow>
         </template>
       </TableBody>
     </Table>
+
+    <AlertDialog v-model:open="isDialogOpen">
+      <AlertDialogContent data-test="delete-dialog">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Удалить кампанию?</AlertDialogTitle>
+
+          <AlertDialogDescription>
+            Кампания «{{ pendingCampaign?.name }}» будет удалена вместе со всеми
+            получателями и вложениями. Действие необратимо.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <AlertDialogFooter>
+          <Button
+            :disabled="isDeleting"
+            variant="outline"
+            data-test="cancel-delete-button"
+            @click="closeDialog"
+          >
+            Отмена
+          </Button>
+
+          <Button
+            :disabled="isDeleting"
+            variant="destructive"
+            data-test="confirm-delete-button"
+            @click="confirmDelete"
+          >
+            Удалить
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
+
+import { Trash } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Table,
   TableBody,
@@ -88,6 +147,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { Campaign, CampaignStatus } from '@/apiService/campaigns/campaignsApiTypes';
+import useDeleteCampaign from '@/composables/data/useDeleteCampaign';
+import useToast from '@/composables/useToast';
 
 interface Props {
   campaigns?: Campaign[];
@@ -97,6 +158,39 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   campaigns: () => [],
   isLoading: false,
+});
+
+const emit = defineEmits<{ deleted: [] }>();
+
+const toast = useToast();
+const { isLoading: isDeleting, deleteCampaign, onDone } = useDeleteCampaign();
+
+const pendingCampaign = ref<Campaign | null>(null);
+const isDialogOpen = ref(false);
+
+function openDialog(campaign: Campaign) {
+  pendingCampaign.value = campaign;
+  isDialogOpen.value = true;
+}
+
+function closeDialog() {
+  isDialogOpen.value = false;
+}
+
+function confirmDelete() {
+  if (!pendingCampaign.value) {
+    return;
+  }
+
+  deleteCampaign({ id: pendingCampaign.value.id });
+}
+
+onDone(() => {
+  toast.success('Кампания удалена');
+
+  isDialogOpen.value = false;
+
+  emit('deleted');
 });
 
 const STATUS_LABEL: Record<CampaignStatus, string> = {

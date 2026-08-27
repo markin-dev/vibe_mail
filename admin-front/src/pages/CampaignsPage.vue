@@ -25,6 +25,7 @@
     <CampaignsTable
       :campaigns="campaigns ?? []"
       :is-loading="isLoading"
+      @deleted="load"
     />
   </section>
 </template>

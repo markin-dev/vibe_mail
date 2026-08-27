@@ -65,6 +65,12 @@ def set_status(db: Session, campaign: Campaign, status: CampaignStatus) -> Campa
     return campaign
 
 
+def delete_campaign(db: Session, campaign_id: int) -> None:
+    campaign = get_campaign(db, campaign_id)
+    db.delete(campaign)
+    db.commit()
+
+
 def import_csv(
     db: Session, campaign_id: int, content: bytes, encoding: str = "utf-8-sig"
 ) -> dict:

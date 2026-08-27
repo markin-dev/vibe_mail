@@ -37,3 +37,9 @@ export interface Campaign {
 export interface GetCampaignInput {
   id: number;
 }
+
+export interface DeleteCampaignInput {
+  id: number;
+}
+
+export type DeleteCampaignResponseWire = components['schemas']['MessageOutEnvelope'];

@@ -97,3 +97,9 @@ def stop_campaign(campaign_id: int, db: Session = Depends(get_db)):
     camp = cs.get_campaign(db, campaign_id)
     cs.set_status(db, camp, CampaignStatus.NEW)
     return ok(MessageOut(detail="Рассылка остановлена", campaign_id=camp.id))
+
+
+@router.delete("/{campaign_id}", response_model=MessageOutEnvelope)
+def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
+    cs.delete_campaign(db, campaign_id)
+    return ok(MessageOut(detail="Кампания удалена", campaign_id=campaign_id))
