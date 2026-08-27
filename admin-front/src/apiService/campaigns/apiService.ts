@@ -10,10 +10,10 @@ import type {
 } from './campaignsApiTypes';
 
 export const campaignsApiService = {
-  getCampaigns: async (): Promise<Campaign[] | undefined> => {
+  getCampaigns: async (): Promise<Campaign[]> => {
     const response = await request<ListCampaignsResponseWire>('GET', '/campaigns');
 
-    return campaignsListAdapter.adaptResponseData(response);
+    return campaignsListAdapter.adaptResponseData(response) ?? [];
   },
 
   getCampaign: async (input: GetCampaignInput): Promise<Campaign | undefined> => {

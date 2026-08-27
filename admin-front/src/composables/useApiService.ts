@@ -1,0 +1,62 @@
+import { ref, type Ref } from 'vue';
+
+interface UseApiServiceOptions {
+  errorMessage?: string;
+}
+
+export interface UseApiServiceResult<T, V extends unknown[] = []> {
+  isLoading: Ref<boolean>;
+  data: Ref<T | null>;
+  execute: (...args: V) => void;
+  onDone: (cb: () => void) => void;
+  onError: (cb: () => void) => void;
+}
+
+export default function useApiService<T, V extends unknown[] = []>(
+  apiServiceMethod: (...args: V) => Promise<T>,
+  options?: UseApiServiceOptions,
+): UseApiServiceResult<T, V> {
+  const isLoading = ref<boolean>(false);
+  const data: Ref<T | null> = ref(null);
+
+  let onDoneCb: (() => void) | undefined;
+  let onErrorCb: (() => void) | undefined;
+
+  const onDone = (cb: () => void) => {
+    onDoneCb = cb;
+  };
+
+  const onError = (cb: () => void) => {
+    onErrorCb = cb;
+  };
+
+  const execute = async (...args: V) => {
+    isLoading.value = true;
+
+    try {
+      const response = await apiServiceMethod(...args);
+
+      data.value = response;
+
+      if (typeof onDoneCb === 'function') {
+        onDoneCb();
+      }
+    } catch (e) {
+      console.error(options?.errorMessage ?? e);
+
+      if (typeof onErrorCb === 'function') {
+        onErrorCb();
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+  return {
+    isLoading,
+    data,
+    execute,
+    onDone,
+    onError,
+  };
+}

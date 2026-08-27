@@ -28,7 +28,7 @@
     >
       <Table>
         <TableCaption>
-          Всего кампаний: {{ campaigns.length }}
+          Всего кампаний: {{ (campaigns ?? []).length }}
         </TableCaption>
 
         <TableHeader>
@@ -45,15 +45,11 @@
 
         <TableBody>
           <TableEmpty
-            v-if="campaigns.length === 0"
+            v-if="(campaigns ?? []).length === 0"
             :colspan="7"
           >
             <template v-if="isLoading">
               Загрузка…
-            </template>
-
-            <template v-else-if="error">
-              {{ error }}
             </template>
 
             <template v-else>
@@ -62,7 +58,7 @@
           </TableEmpty>
 
           <TableRow
-            v-for="campaign in campaigns"
+            v-for="campaign in campaigns ?? []"
             v-else
             :key="campaign.id"
             data-test="campaign-row"
@@ -113,10 +109,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useCampaigns } from '@/composables/useCampaigns';
+import useGetCampaigns from '@/composables/data/useGetCampaigns';
 import type { CampaignStatus } from '@/apiService/campaigns/campaignsApiTypes';
 
-const { campaigns, isLoading, error, load } = useCampaigns();
+const { campaigns, isLoading, getCampaigns: load } = useGetCampaigns();
 
 onMounted(load);
 

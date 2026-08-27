@@ -137,9 +137,12 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
       `{status,result,error}` и маппит `result` → доменные типы (snake_case → camelCase).
   - **Поток вызова:** компонент/компосабл → `apiService.<domain>.<method>(input)` →
     `adapter.adaptParams(input)` → `httpClient.<method>` → `adapter.adaptResponseData(wire)`.
-- **Компосаблы** (`src/composables/`, напр. `useCampaigns.ts`): не вызывают lifecycle-хуки
-  напрямую — возвращают функцию `load`, которую компонент дёргает в `onMounted`. Используют
-  фасад `apiService`.
+- **Компосаблы** (`src/composables/`): базовый `useApiService` (обёртка вызова API —
+  `isLoading`/`data`/`execute`/`onDone`/`onError`; ошибки пишутся в консоль) лежит в корне
+  `composables/`. Доменные компосаблы, работающие с API, лежат в `src/composables/data/` и
+  строятся поверх `useApiService` + фасада `apiService`: в `useApiService` передаётся ссылка
+  на метод API-сервиса, а название компосабла повторяет метод, напр. `getCampaigns` →
+  `useGetCampaigns` (`campaigns: data`, `getCampaigns: execute`).
 - **Страницы/компоненты** (`src/pages`, `src/components`): порядок блоков в `.vue` —
   `<template>` → `<script>` → `<style>`; UI только из shadcn (`@/components/ui`). Поиск в
   тестах — по `data-test`.
