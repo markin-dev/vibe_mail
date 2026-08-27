@@ -1,9 +1,12 @@
 import { request } from '@/apiService/httpClient';
 
+import campaignsCreateAdapter from './adapters/campaignsCreateAdapter';
 import campaignsItemAdapter from './adapters/campaignsItemAdapter';
 import campaignsListAdapter from './adapters/campaignsListAdapter';
 import type {
   Campaign,
+  CampaignCreateInput,
+  CreateCampaignResponseWire,
   GetCampaignInput,
   GetCampaignResponseWire,
   ListCampaignsResponseWire,
@@ -20,6 +23,22 @@ export const campaignsApiService = {
     const response = await request<GetCampaignResponseWire>('GET', `/campaigns/${input.id}`);
 
     return campaignsItemAdapter.adaptResponseData(response);
+  },
+
+  createCampaign: async (input: CampaignCreateInput): Promise<Campaign> => {
+    const response = await request<CreateCampaignResponseWire>(
+      'POST',
+      '/campaigns',
+      campaignsCreateAdapter.adaptParams(input),
+    );
+
+    const campaign = campaignsCreateAdapter.adaptResponseData(response);
+
+    if (!campaign) {
+      throw new Error('Не удалось создать кампанию');
+    }
+
+    return campaign;
   },
 };
 

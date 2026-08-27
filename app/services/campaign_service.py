@@ -28,7 +28,6 @@ def create_campaign(db: Session, data: CampaignCreate) -> Campaign:
     )
     db.add(campaign)
     db.commit()
-    db.refresh(campaign)
     return campaign
 
 
@@ -63,7 +62,6 @@ def get_progress(db: Session, campaign: Campaign) -> dict:
 def set_status(db: Session, campaign: Campaign, status: CampaignStatus) -> Campaign:
     campaign.status = status
     db.commit()
-    db.refresh(campaign)
     return campaign
 
 
@@ -125,7 +123,5 @@ def import_csv(
 
     db.add_all(recipients)
     db.commit()
-    for r in recipients:
-        db.refresh(r)
 
     return {"created": len(recipients), "skipped": skipped, "problems": problems}

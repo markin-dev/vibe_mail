@@ -124,20 +124,14 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+  button {
+    @apply cursor-pointer;
+  }
 }
 
 @utility transition-size {
   transition-property: width, height;
   transition-timing-function: linear;
-}
-
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
 }
 
 /* Цвета типизированных тостов Sonner (rich-colors): success — зелёный,
@@ -169,4 +163,13 @@
   --info-bg: oklch(0.22 0.05 230);
   --info-border: oklch(0.45 0.13 230);
   --info-text: oklch(0.92 0.03 230);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

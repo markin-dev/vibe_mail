@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import CampaignsPage from '@/pages/CampaignsPage.vue'
+import CreateCampaignPage from '@/pages/CreateCampaignPage.vue'
 import TestPage from '@/pages/TestPage.vue'
 
 export default createRouter({
@@ -14,6 +15,12 @@ export default createRouter({
       path: '/campaigns',
       name: 'campaigns',
       component: CampaignsPage
+    },
+
+    {
+      path: '/campaigns/create',
+      name: 'campaigns-create',
+      component: CreateCampaignPage
     },
 
     {
