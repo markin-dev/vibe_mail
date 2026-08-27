@@ -3,150 +3,28 @@
     data-test="campaigns-page"
     class="flex flex-col gap-4"
   >
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-semibold text-foreground">
-        Кампании
-      </h1>
-
-      <Button
-        :disabled="isLoading"
-        data-test="refresh-button"
-        variant="outline"
-        @click="load"
-      >
-        Обновить
-      </Button>
-    </div>
+    <h1 class="text-2xl font-semibold text-foreground">
+      Кампании
+    </h1>
 
     <p class="text-muted-foreground">
       Список кампаний и управление рассылками.
     </p>
 
-    <div
-      data-test="campaigns-table"
-      class="rounded-md border"
-    >
-      <Table>
-        <TableCaption>
-          Всего кампаний: {{ (campaigns ?? []).length }}
-        </TableCaption>
-
-        <TableHeader>
-          <TableRow>
-            <TableHead>ID</TableHead>
-            <TableHead>Название</TableHead>
-            <TableHead>Тема</TableHead>
-            <TableHead>Статус</TableHead>
-            <TableHead>Прогресс</TableHead>
-            <TableHead>Создана</TableHead>
-          </TableRow>
-        </TableHeader>
-
-        <TableBody>
-          <TableEmpty
-            v-if="(campaigns ?? []).length === 0"
-            :colspan="6"
-          >
-            <template v-if="isLoading">
-              Загрузка…
-            </template>
-
-            <template v-else>
-              Кампании не найдены
-            </template>
-          </TableEmpty>
-
-          <TableRow
-            v-for="campaign in campaigns ?? []"
-            v-else
-            :key="campaign.id"
-            data-test="campaign-row"
-          >
-            <TableCell>{{ campaign.id }}</TableCell>
-
-            <TableCell class="font-medium">
-              {{ campaign.name }}
-            </TableCell>
-
-            <TableCell>{{ campaign.subject }}</TableCell>
-
-            <TableCell>
-              <Badge :class="statusClass(campaign.status)">
-                {{ statusLabel(campaign.status) }}
-              </Badge>
-            </TableCell>
-
-            <TableCell>
-              <span v-if="campaign.totals">
-                {{ campaign.totals.sent }} / {{ campaign.totals.total }}
-              </span>
-
-              <span v-else>—</span>
-            </TableCell>
-
-            <TableCell>{{ formatDate(campaign.createdAt) }}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-    </div>
+    <CampaignsTable
+      :campaigns="campaigns ?? []"
+      :is-loading="isLoading"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableEmpty,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import CampaignsTable from '@/components/CampaignsTable.vue';
 import useGetCampaigns from '@/composables/data/useGetCampaigns';
-import type { CampaignStatus } from '@/apiService/campaigns/campaignsApiTypes';
 
 const { campaigns, isLoading, getCampaigns: load } = useGetCampaigns();
 
 onMounted(load);
-
-const STATUS_LABEL: Record<CampaignStatus, string> = {
-  new: 'Новая',
-  in_progress: 'В работе',
-  done: 'Завершена',
-  error: 'Ошибка',
-};
-
-const STATUS_CLASS: Record<CampaignStatus, string> = {
-  new: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  done: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  error: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-};
-
-function statusLabel(status: CampaignStatus): string {
-  return STATUS_LABEL[status];
-}
-
-function statusClass(status: CampaignStatus): string {
-  return STATUS_CLASS[status];
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-}
 </script>
