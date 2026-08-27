@@ -1,22 +1,100 @@
-"""Сидинг БД: создаёт 15 кампаний с разными данными.
+"""Сидинг БД: создаёт 15 кампаний и ~40 фейковых получателей.
 
 Запуск из корня репозитория:
     pipenv run python seed_campaigns.py
 
 Таблицы создаются через Base.metadata.create_all (на случай пустой БД).
+
+Распределение получателей подобрано для проверки всего флоу отправки:
+- у кампаний со статусом NEW — пачка PENDING (их можно запустить вручную
+  через «Запустить рассылку» и наблюдать отправку);
+- у IN_PROGRESS — по 1 PENDING (воркер подхватит при старте и дошлёт);
+- у DONE/ERROR — завершённые/упавшие получатели (история в логе).
 """
 import datetime
+import random
 
 from sqlalchemy.orm import Session
 
-from app.db.models import Base, Campaign, CampaignStatus
+from app.db.models import (
+    Base,
+    Campaign,
+    CampaignStatus,
+    Recipient,
+    RecipientStatus,
+)
 from app.db.session import SessionLocal, engine
+
+
+random.seed(1234)
+
+FAKE_NAMES: list[str] = [
+    "Иван",
+    "Мария",
+    "Алексей",
+    "Ольга",
+    "Дмитрий",
+    "Анна",
+    "Сергей",
+    "Елена",
+    "Павел",
+    "Юлия",
+]
+
+FAKE_DOMAINS: list[str] = ["example.com", "test.ru", "mail.org", "vibe.dev"]
+
+# Сколько получателей и с какими статусами создаём для каждого статуса кампании.
+RECIPIENT_PLAN: dict[CampaignStatus, tuple[int, list[RecipientStatus]]] = {
+    CampaignStatus.NEW: (14, [RecipientStatus.PENDING]),
+    CampaignStatus.IN_PROGRESS: (1, [RecipientStatus.PENDING]),
+    CampaignStatus.DONE: (
+        1,
+        [RecipientStatus.SENT, RecipientStatus.FAILED, RecipientStatus.SKIPPED],
+    ),
+    CampaignStatus.ERROR: (1, [RecipientStatus.FAILED]),
+}
 
 
 def _days_ago(days: int) -> datetime.datetime:
     """Возвращает naive-UTC время на N дней назад от текущего момента."""
     base = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
     return base - datetime.timedelta(days=days)
+
+
+def _build_recipients(status: CampaignStatus, index: int) -> list[Recipient]:
+    """Фейковые получатели для кампании с учётом её статуса.
+
+    `index` — порядковый номер кампании в SEED, чтобы у завершённых кампаний
+    получатели получали разные статусы (SENT/FAILED/SKIPPED) для разнообразия
+    в логе.
+    """
+    count, statuses = RECIPIENT_PLAN[status]
+    recipients: list[Recipient] = []
+
+    for i in range(count):
+        recipient_status = (
+            statuses[index % len(statuses)] if len(statuses) > 1
+            else statuses[i % len(statuses)]
+        )
+        is_finished = recipient_status in (RecipientStatus.SENT, RecipientStatus.SKIPPED)
+        sent_at = _days_ago(random.randint(0, 30)) if is_finished else None
+        error = (
+            "Ошибка SMTP: таймаут соединения с сервером"
+            if recipient_status == RecipientStatus.FAILED
+            else None
+        )
+
+        recipients.append(
+            Recipient(
+                email=f"user{i}@{random.choice(FAKE_DOMAINS)}",
+                name=random.choice(FAKE_NAMES),
+                status=recipient_status,
+                error=error,
+                sent_at=sent_at,
+            )
+        )
+
+    return recipients
 
 
 # (name, subject, body, status, created_at_days_ago)
@@ -129,10 +207,12 @@ SEED: list[tuple[str, str, str, CampaignStatus, int]] = [
 ]
 
 
-def seed(db: Session) -> int:
+def seed(db: Session) -> tuple[int, int]:
     Base.metadata.create_all(engine)
-    count = 0
-    for name, subject, body, status, days in SEED:
+    campaign_count = 0
+    recipient_count = 0
+
+    for idx, (name, subject, body, status, days) in enumerate(SEED):
         campaign = Campaign(
             name=name,
             subject=subject,
@@ -141,16 +221,22 @@ def seed(db: Session) -> int:
             created_at=_days_ago(days),
         )
         db.add(campaign)
-        count += 1
+
+        for recipient in _build_recipients(status, idx):
+            campaign.recipients.append(recipient)
+            recipient_count += 1
+
+        campaign_count += 1
+
     db.commit()
-    return count
+    return campaign_count, recipient_count
 
 
 def main() -> None:
     db = SessionLocal()
     try:
-        created = seed(db)
-        print(f"Создано кампаний: {created}")
+        campaigns, recipients = seed(db)
+        print(f"Создано кампаний: {campaigns}, получателей: {recipients}")
     finally:
         db.close()
 
