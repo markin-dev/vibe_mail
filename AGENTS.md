@@ -169,7 +169,11 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   затем `<script>` (`setup`), затем `<style>`. Относится к проектным файлам
   (`src/App.vue`, `src/components/*` кроме `ui/`, будущие страницы/компоненты).
   Сгенерированные shadcn-компоненты в `src/components/ui/*` не трогаем — их
-  перезаписывает тулинг при обновлениях.
+  перезаписывает тулинг при обновлениях. Если сгенерированный компонент
+  требует глобальный CSS (пример: `vue-sonner/style.css` для
+  `src/components/ui/sonner`), этот CSS импортируем **глобально** в
+  `src/style.css` через `@import 'vue-sonner/style.css';`, а НЕ внутри файлов
+  `src/components/ui/**` (иначе правка слетит при следующем `shadcn-vue add`).
 - **UI-элементы — только из shadcn:** кнопки берём из `@/components/ui/button`
   (`Button`), свою реализацию кнопок/инпутов/карточек не пишем. Любой элемент
   интерфейса — из shadcn (или добавляем через `npx shadcn-vue@latest add <name>`),

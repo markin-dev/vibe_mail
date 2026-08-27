@@ -1,4 +1,9 @@
 <template>
+  <Toaster
+    position="top-right"
+    rich-colors
+  />
+
   <SidebarProvider>
     <AppSidebar />
 
@@ -15,5 +20,6 @@
 <script setup lang="ts">
 import AppSidebar from '@/components/AppLayout/AppSidebar.vue';
 import AppHeader from '@/components/AppLayout/AppHeader.vue';
+import { Toaster } from '@/components/ui/sonner';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 </script>

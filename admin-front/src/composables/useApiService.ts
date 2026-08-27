@@ -1,4 +1,5 @@
 import { ref, type Ref } from 'vue';
+import useToast from '@/composables/useToast';
 
 interface UseApiServiceOptions {
   errorMessage?: string;
@@ -42,7 +43,11 @@ export default function useApiService<T, V extends unknown[] = []>(
         onDoneCb();
       }
     } catch (e) {
-      console.error(options?.errorMessage ?? e);
+      console.error(e);
+
+      if (options?.errorMessage) {
+        useToast().error(options.errorMessage);
+      }
 
       if (typeof onErrorCb === 'function') {
         onErrorCb();
