@@ -129,3 +129,12 @@
   transition-property: width, height;
   transition-timing-function: linear;
 }
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

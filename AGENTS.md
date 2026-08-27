@@ -91,6 +91,59 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 - `services/worker.py` — фоновый поток отправки.
 - `api/*` — роутеры FastAPI; `deps.py` даёт `get_db` и `get_worker`.
 
+## Архитектура
+
+### Бэкенд (FastAPI)
+- **Слоистая структура.** Путь запроса: `api/*` (роутеры) → `services/*` (бизнес-логика)
+  → `db` (ORM). Роутеры тонкие: валидируют вход pydantic-схемами, вызывают сервисы,
+  оборачивают результат. Сервисы не зависят от HTTP (`mail_sender` не знает про БД).
+- **Единая обёртка ответов.** Все JSON-эндпоинты данных возвращают
+  `ApiEnvelope[T]` = `{status: 'success'|'error', result, error}`. Для каждого ответа —
+  явный подкласс в `schemas/envelope.py` (`CampaignReadEnvelope`,
+  `ListCampaignReadEnvelope`, `MessageOutEnvelope`, …) ради стабильных имён в OpenAPI
+  (generic даёт хешированные суффиксы). Роутеры возвращают `ok(result)`. Ошибки
+  (HTTPException, RequestValidationError, необработанные) перехватываются в `main.py`
+  и тоже оборачиваются в `{status:'error', result:null, error}`.
+- **Конфиг** — `core/config.py` (`Settings` + кешированный `get_settings()`); SMTP и БД
+  из `.env`. **Auth** — нет. **Миграции** — Alembic не подключён, таблицы создаются
+  `Base.metadata.create_all` в `lifespan`.
+- **Отправка** — фоновый поток `services/worker.py`, стартует в `lifespan`; подхватывает
+  «зависшие» `RUNNING`. Статусы получателей в БД — механизм возобновления. Валидация ДО
+  отправки — `recipient_service.validate_campaign_ready` (синтаксис email, дубликаты,
+  размер вложений); при ошибке `start` отдаёт 400. Ретраи в `mail_sender` (2/4/8 с для
+  временных ошибок).
+
+### Фронтенд (admin-front)
+- **Стек:** Vite 8 + Vue 3.5 (`<script setup>` + Composition API) + TypeScript 6,
+  shadcn-vue поверх Tailwind v4. Node 24 (nvm). Глобальные правила `~/.claude/CLAUDE.md`
+  (TS/Vue/Composables/тесты/импорты) **применяются**.
+- **Слой API — `src/apiService/`** (фасадная архитектура с адаптерами):
+  - `httpClient.ts` — низкоуровневый `fetch`-обёртчик. Базовый URL из `VITE_API_BASE_URL`
+    (по умолчанию `/api`; в dev Vite проксирует `/api` → `http://localhost:8000`, поэтому
+    CORS на бэкенде не нужен). Бросает ошибку при `!response.ok` или `status === 'error'`.
+  - `types/vibe-mail.ts` — **сгенерировано** из бэкенд-`/openapi.json` через
+    `openapi-typescript` (скрипт `npm run generate:api`, файл в `.eslintignore`).
+    Wire-типы берутся отсюда (`components['schemas']`).
+  - `index.ts` — **корневой баррель**: собирает доменные сервисы в единый фасад
+    `apiService` (использование: `apiService.campaigns.getCampaigns()`).
+  - **На каждый домен — своя папка** (например, `campaigns/`):
+    - `campaignsApiTypes.ts` — доменные типы (camelCase, без обёртки) + wire-типы
+      (из сгенерированной схемы).
+    - `apiService.ts` — методы домена: вызывают `httpClient`, прогоняют параметры/ответ
+      через адаптеры, возвращают доменные данные.
+    - `adapters/` — `campaignsListAdapter.ts`, `campaignsItemAdapter.ts` и т.д. Каждый
+      дефолт-экспорт = `{ adaptParams, adaptResponseData }`: `adaptParams` маппит доменные
+      входные данные → wire (тело/query), `adaptResponseData` снимает обёртку
+      `{status,result,error}` и маппит `result` → доменные типы (snake_case → camelCase).
+  - **Поток вызова:** компонент/компосабл → `apiService.<domain>.<method>(input)` →
+    `adapter.adaptParams(input)` → `httpClient.<method>` → `adapter.adaptResponseData(wire)`.
+- **Компосаблы** (`src/composables/`, напр. `useCampaigns.ts`): не вызывают lifecycle-хуки
+  напрямую — возвращают функцию `load`, которую компонент дёргает в `onMounted`. Используют
+  фасад `apiService`.
+- **Страницы/компоненты** (`src/pages`, `src/components`): порядок блоков в `.vue` —
+  `<template>` → `<script>` → `<style>`; UI только из shadcn (`@/components/ui`). Поиск в
+  тестах — по `data-test`.
+
 ## Заметки
 - `send_mail.py` / `import_csv.py` — **легаси** CLI; логика перенесена в
   `app/services/*`. Удалять только после проверки нового API.
@@ -118,3 +171,6 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   (`Button`), свою реализацию кнопок/инпутов/карточек не пишем. Любой элемент
   интерфейса — из shadcn (или добавляем через `npx shadcn-vue@latest add <name>`),
   а не кастомная вёрстка `div`/`button`.
+- **Комментарии в фронтенде (`admin-front`):** избыточные комментарии не нужны. Не
+  дублируй в комментариях в начале файла то, что и так понятно из имени файла и кода
+  (назначение файла, очевидные шаги). Комментируй только нетривиальную логику.

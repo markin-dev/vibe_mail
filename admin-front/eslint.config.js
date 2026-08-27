@@ -42,7 +42,7 @@ const attributesOrder = [
 
 export default [
   {
-    ignores: ['dist/**', 'api-mocker/**', 'src/components/ui/**'],
+    ignores: ['dist/**', 'api-mocker/**', 'src/components/ui/**', 'src/apiService/types/vibe-mail.ts'],
   },
   js.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
