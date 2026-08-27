@@ -181,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ArrowLeft, LoaderCircle } from '@lucide/vue';
@@ -230,11 +230,42 @@ const {
 
 const recipientsList = computed(() => recipients.value ?? []);
 
-function load() {
+const POLL_INTERVAL = 3000;
+let pollTimer: number | undefined;
+let pollInFlight = false;
+
+function load(): Promise<void> {
   const id = campaignId.value;
 
-  getCampaign({ id });
-  getRecipients({ campaignId: id });
+  return Promise.all([
+    getCampaign({ id }),
+    getRecipients({ campaignId: id }),
+  ])
+    .then(() => undefined)
+    .catch(() => undefined);
+}
+
+function pollOnce() {
+  if (pollInFlight) {
+    return;
+  }
+
+  pollInFlight = true;
+  load().finally(() => {
+    pollInFlight = false;
+  });
+}
+
+function startPolling() {
+  stopPolling();
+  pollTimer = setInterval(pollOnce, POLL_INTERVAL);
+}
+
+function stopPolling() {
+  if (pollTimer !== undefined) {
+    clearInterval(pollTimer);
+    pollTimer = undefined;
+  }
 }
 
 function onStart() {
@@ -251,7 +282,20 @@ onDone(() => {
   load();
 });
 
+watch(
+  () => campaign.value?.status,
+  (status) => {
+    if (status === 'in_progress') {
+      startPolling();
+    } else {
+      stopPolling();
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(load);
+onUnmounted(stopPolling);
 
 function goBack() {
   router.push('/campaigns');
