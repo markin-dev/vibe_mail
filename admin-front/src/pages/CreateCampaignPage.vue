@@ -89,7 +89,12 @@
         type="submit"
         data-test="submit-button"
       >
-        Создать
+        <LoaderCircle
+          v-if="isLoading"
+          class="h-4 w-4 animate-spin"
+        />
+
+        {{ isLoading ? 'Создание…' : 'Создать' }}
       </Button>
     </form>
   </section>
@@ -101,6 +106,7 @@ import { useForm } from 'vee-validate';
 import { useRouter } from 'vue-router';
 import { z } from 'zod';
 
+import { LoaderCircle } from '@lucide/vue';
 import { Button } from '@/components/ui/button';
 import {
   FormControl,

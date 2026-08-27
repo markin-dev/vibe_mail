@@ -114,7 +114,12 @@
             data-test="confirm-delete-button"
             @click="confirmDelete"
           >
-            Удалить
+            <LoaderCircle
+              v-if="isDeleting"
+              class="h-4 w-4 animate-spin"
+            />
+
+            {{ isDeleting ? 'Удаление…' : 'Удалить' }}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -125,7 +130,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
-import { Trash } from '@lucide/vue';
+import { LoaderCircle, Trash } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
