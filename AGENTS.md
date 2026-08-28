@@ -15,7 +15,7 @@ HTTP-API сервис массовой рассылки писем. Клиент
 Бэкенд:
 - **FastAPI** + **Uvicorn** (`uvicorn[standard]`); Swagger на `/docs`.
 - **SQLAlchemy 2.x** (sync, `Mapped[...]`) + **SQLite** (`vibe_mail.db`, gitignored).
-- **pydantic-settings** — конфиг из `.env`.
+- **pydantic-settings** — конфиг из `.env`; **paramiko** — SSH к VPN-серверу.
 - **Pipenv** (`Pipfile` + `Pipfile.lock`), venv в `.venv/`.
 - Линтер — **ruff** (конфиг в `pyproject.toml`): select E/W/F/I/UP/B/C4/SIM/RET/PTH/TC,
   ignore `E501` (длину держит форматтер) и `B008` (ложный позитив на `Depends()`).
@@ -47,7 +47,7 @@ app/
 seed_campaigns.py    # фейковые кампании/получатели/конфиги для локальной БД
 Makefile
 Pipfile / Pipfile.lock
-.env.example         # SMTP_*, DATABASE_URL, CORS_ORIGINS
+.env.example         # SMTP_*, DATABASE_URL, CORS_ORIGINS, CONFIG_SOURCE, SSH_*, VPN_API_*
 
 admin-front/src/
   apiService/        # httpClient.ts, index.ts (фасад), types/vibe-mail.ts (генерируется),
@@ -106,6 +106,14 @@ admin-front/src/
   (или `FAILED` с текстом в `error`), коммит после каждого конфига. При старте процесса
   зависшие `GENERATING` возвращаются в `QUEUED`. Готовые конфиги повторный запуск не
   трогает — догенерируются только недостающие. Файл лежит в БД (`configs.content`, BLOB).
+- **Источник конфигов** (`CONFIG_SOURCE`): `ssh` — заходим по SSH на VPN-сервер и создаём
+  клиента через API панели **AmneziaWG Web UI**; `fake` — заглушка со случайным конфигом
+  для разработки без сервера. Панель слушает только localhost сервера, поэтому запрос к ней
+  идёт как `curl` внутри SSH-сессии; `POST /api/servers/{id}/clients` одним вызовом создаёт
+  клиента и возвращает текст конфига. **Имя конфига = имя клиента на сервере**, и дубликат
+  имени — ошибка: молча переиспользовать чужого клиента нельзя, плодить одноимённых пиров
+  тоже. Ошибка любого конфига не рушит очередь: она попадает в `configs.error` и видна
+  в таблице бейджем с тултипом.
 - **Письмо**: тело — только текст кампании, файлы конфигов уезжают **вложениями**
   (`MailSender._build_message`). Воркер отдаёт отправителю ORM-конфиги получателя, контент
   берётся из БД; конфиг без файла пропускается при сборке, но до отправки дело не дойдёт —
@@ -130,8 +138,9 @@ admin-front/src/
 - `services/import_service.py` — разбор вставленного из таблицы списка (единственное место
   парсинга), предпросмотр и импорт получателей.
 - `services/config_service.py` — постановка конфигов кампании в очередь, доступ к конфигу.
-- `services/config_generator.py` — получение файла по имени конфига; **не знает про БД**,
-  как `mail_sender`. Сейчас заглушка со случайным WireGuard-конфигом.
+- `services/config_generator.py` — источники конфигов: `SshVpnConfigSource` (SSH + API
+  панели), `FakeConfigSource` (заглушка) и фабрика `get_config_source(settings)`. В БД не
+  ходят, как `mail_sender`; источник создаётся в `lifespan` и передаётся в `ConfigWorker`.
 - `services/worker.py` — фоновый поток отправки.
 - `services/config_worker.py` — фоновый поток генерации конфигов.
 - `api/*` — роутеры FastAPI; `deps.py` даёт `get_db` и `get_worker`.
@@ -231,8 +240,7 @@ admin-front/src/
   остаётся `None` и в `To:` уходит голый адрес.
 
 ## Известные недоделки
-- `services/config_generator.py` — **заглушка**: отдаёт случайный WireGuard-конфиг вместо
-  обращения к VPN-серверу по SSH. Место замены помечено `TODO` в модуле.
+- SSH-доступ только по паролю (`SSH_PASSWORD`); авторизации по ключу нет.
 - Ограничения на суммарный размер вложений нет: конфиги весят сотни байт, но при переходе
   на реальные файлы стоит вернуть проверку лимита письма в `validate_campaign_ready`.
 - Диалог импорта (`AddRecipientsDialog.vue`) закрывается кликом мимо окна и чистит

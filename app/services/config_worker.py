@@ -1,8 +1,8 @@
 """Фоновый поток генерации конфигов.
 
 Запускается вместе с приложением (через lifespan) и обрабатывает конфиги в статусе
-QUEUED: берёт по одному, получает файл через `config_generator` и складывает его в БД.
-Источник правды — статусы в БД, поэтому процесс возобновляем: при старте «зависшие»
+QUEUED: берёт по одному, получает файл у источника (`config_generator`) и складывает его
+в БД. Источник правды — статусы в БД, поэтому процесс возобновляем: при старте «зависшие»
 GENERATING возвращаются в очередь.
 """
 import logging
@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Config, ConfigStatus
 from app.db.session import SessionLocal
-from app.services.config_generator import generate_config
+from app.services.config_generator import ConfigSource
 
 log = logging.getLogger("vibe_mail.config_worker")
 
@@ -22,7 +22,8 @@ log = logging.getLogger("vibe_mail.config_worker")
 class ConfigWorker:
     """Потоковый воркер генерации конфигов."""
 
-    def __init__(self) -> None:
+    def __init__(self, source: ConfigSource) -> None:
+        self.source = source
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
 
@@ -38,6 +39,7 @@ class ConfigWorker:
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=30)
+        self.source.close()
 
     @staticmethod
     def _requeue_stuck() -> None:
@@ -72,13 +74,12 @@ class ConfigWorker:
                 time.sleep(1)
         log.info("Воркер генерации конфигов остановлен")
 
-    @staticmethod
-    def _process(db: Session, config: Config) -> None:
+    def _process(self, db: Session, config: Config) -> None:
         config.status = ConfigStatus.GENERATING
         db.commit()
 
         try:
-            filename, content = generate_config(config.name)
+            filename, content = self.source.generate(config.name)
         except Exception as exc:  # noqa: BLE001 - ошибка одного конфига не рушит очередь
             config.status = ConfigStatus.FAILED
             config.error = str(exc)

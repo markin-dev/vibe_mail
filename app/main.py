@@ -12,6 +12,7 @@ from app.core.logging import setup_logging
 from app.db.base import Base
 from app.db.session import engine
 from app.schemas.envelope import ApiEnvelope
+from app.services.config_generator import get_config_source
 from app.services.config_worker import ConfigWorker
 from app.services.mail_sender import MailSender
 from app.services.worker import Worker
@@ -28,7 +29,7 @@ async def lifespan(app: FastAPI):
     app.state.worker = worker
     worker.start()
 
-    config_worker = ConfigWorker()
+    config_worker = ConfigWorker(get_config_source(settings))
     app.state.config_worker = config_worker
     config_worker.start()
 
