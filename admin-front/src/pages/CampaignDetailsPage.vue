@@ -585,13 +585,13 @@ function formatDate(value: string): string {
 }
 
 .colError {
-  width: 50rem;
-  max-width: 50rem;
+  width: 30rem;
+  max-width: 30rem;
 }
 
 .cellError {
-  width: 50rem;
-  max-width: 50rem;
+  width: 30rem;
+  max-width: 30rem;
 }
 
 .errorText {

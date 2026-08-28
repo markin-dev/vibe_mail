@@ -1,35 +1,37 @@
 # AGENTS.md — vibe_mail
 
-Путеводитель для AI-агента по проекту **vibe_mail**.
+Путеводитель для AI-агента по проекту **vibe_mail**: архитектура, инварианты и конвенции.
 
-> Проект на **Python 3** (FastAPI + SQLAlchemy). Глобальные правила из
-> `~/.claude/CLAUDE.md`, касающиеся TypeScript/Vue/Composables, к этому
-> репозиторию не относятся — применяются только общепроектные принципы.
-
-> **Память проекта** (решения, прогресс реализации и контекст сессий) хранится в
-> `PROJECT_MEMORY.md` в этом же репозитории — коммить её вместе с кодом и обновляй
-> при значимых изменениях.
+> Глобальные правила из `~/.claude/CLAUDE.md` про TypeScript/Vue/Composables **не
+> относятся** к Python-части репозитория, но **применяются** к фронтенду в `admin-front/`.
 
 ## Что это
 HTTP-API сервис массовой рассылки писем. Клиент (фронтенд `admin-front`) создаёт
 кампании, добавляет получателей, запускает рассылку; отправка идёт в фоне, прогресс
 виден по статусам в БД.
 
-## Стек и конвенции
-- **FastAPI** + **Uvicorn** (`uvicorn[standard]`); документация Swagger на `/docs`.
-- **SQLAlchemy 2.x** (sync) + **SQLite** (`vibe_mail.db`, gitignored).
+## Стек
+
+Бэкенд:
+- **FastAPI** + **Uvicorn** (`uvicorn[standard]`); Swagger на `/docs`.
+- **SQLAlchemy 2.x** (sync, `Mapped[...]`) + **SQLite** (`vibe_mail.db`, gitignored).
 - **pydantic-settings** — конфиг из `.env`.
-- **Pipenv**: `Pipfile` + `Pipfile.lock` — источник зависимостей (бывший
-  `requirements.txt` удалён). Локальный venv в `.venv/` (через
-  `PIPENV_VENV_IN_PROJECT=1`, gitignored).
+- **Pipenv** (`Pipfile` + `Pipfile.lock`), venv в `.venv/`.
+- Линтер — **ruff** (конфиг в `pyproject.toml`): select E/W/F/I/UP/B/C4/SIM/RET/PTH/TC,
+  ignore `E501` (длину держит форматтер) и `B008` (ложный позитив на `Depends()`).
 - Язык комментариев и сообщений — **русский**.
 - Тестов **нет** (пользователь явно отменил).
-- **Линтер — ruff** (dev-зависимость в `Pipfile`, конфиг в `pyproject.toml`).
-  Запуск: `make lint` (= `pipenv run ruff check`). В `select` включены E/W/F/I/UP/B/C4/SIM/RET/PTH/TC;
-  `ignore` — `E501` (длину держит форматтер) и `B008` (ложный позитив на `Depends()` в FastAPI).
-- Правила глобального `CLAUDE.md` про TS/Vue не применять.
 
-## Структура (реализовано)
+Фронтенд (`admin-front/`) — отдельный npm-проект, с Pipenv не связан:
+- **Vite 8** + **Vue 3.5** (`<script setup>` + Composition API) + **TypeScript 5.x**.
+- **shadcn-vue** поверх **Tailwind v4**, примитивы reka-ui, иконки `@lucide/vue`,
+  тосты `vue-sonner`.
+- Формы — `vee-validate` + `@vee-validate/zod` + `zod`. Роутер — vue-router 4.
+- Стора нет (ни Pinia, ни Vuex): состояние живёт в композаблах и локальных `ref`.
+- ESLint (flat config `admin-front/eslint.config.js`); в `ignores` — `dist/**`,
+  `api-mocker/**`, `src/components/ui/**`, `src/apiService/types/vibe-mail.ts`.
+
+## Структура
 ```
 app/
   main.py            # FastAPI app + lifespan (create_all, старт/стоп воркера)
@@ -41,21 +43,19 @@ app/
   services/          # mail_sender.py (MailSender), recipient_service.py,
                      # campaign_service.py, import_service.py, worker.py
   api/               # deps.py, campaigns.py, recipients.py, health.py
-Makefile             # make dev / make run / make install
+seed_campaigns.py    # фейковые кампании/получатели/конфиги для локальной БД
+Makefile
 Pipfile / Pipfile.lock
 .env.example         # SMTP_*, DATABASE_URL, CORS_ORIGINS
-PROJECT_MEMORY.md    # журнал решений и прогресса
-```
 
-## Запуск (локально)
-```bash
-pip install pipenv
-PIPENV_VENV_IN_PROJECT=1 pipenv install
-cp .env.example .env        # заполнить SMTP_PASSWORD
-make dev                    # = pipenv run uvicorn app.main:app --reload
+admin-front/src/
+  apiService/        # httpClient.ts, index.ts (фасад), types/vibe-mail.ts (генерируется),
+                     # campaigns/ и recipients/ — по папке на домен + adapters/
+  composables/       # useApiService.ts, useToast.ts; data/ — по файлу на метод API
+  components/        # проектные компоненты + AppLayout/; ui/ — сгенерированный shadcn
+  pages/             # CampaignsPage, CreateCampaignPage, CampaignDetailsPage
+  router/
 ```
-Альтернатива: `pipenv run python -m app [--host --port --reload]`.
-В VS Code выбрать интерпретатор `./.venv/bin/python` (иначе Pylance ругается на импорты).
 
 ## API (базовый префикс `/api`)
 | Метод | Путь | Назначение |
@@ -76,19 +76,18 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 ## Ключевые инварианты (сохранять)
 - **Валидация ДО отправки**: синтаксис email (`EMAIL_RE` из `core/constants.py`) и
   дубликаты в кампании — при добавлении получателей; готовность кампании —
-  `recipient_service.validate_campaign_ready`. При ошибке `start` возвращает `400` со
-  списком, ничего не шлём.
+  `recipient_service.validate_campaign_ready` (есть получатели, у каждого есть конфиги).
+  При ошибке `start` возвращает `400` со списком, ничего не шлём.
 - **Возобновление**: кампании со статусом `IN_PROGRESS` подхватываются воркером при
-  старте процесса; получатели со статусом `PENDING` заново отправляются. Источник
+  старте процесса; получатели со статусом `PENDING` отправляются заново. Источник
   правды — статусы получателей в БД (`PENDING`/`SENT`/`FAILED`).
-- **Статусы кампании** (`CampaignStatus`, `app/db/models.py`): `NEW` (new, при создании) →
-  `start` переводит в `IN_PROGRESS` (in_progress); `stop` возвращает в `NEW`; воркер по
-  завершении всех получателей ставит `DONE` (done), а если хотя бы у одного получателя
-  статус `FAILED` — `DONE_WITH_ERRORS` (done_with_errors, «Завершена с ошибками»);
-  `ERROR` (error) — зарезервированный статус фатального сбоя кампании (напр. сломан
-  SMTP/валидация), сейчас нигде не выставляется. И `DONE`, и `DONE_WITH_ERRORS`
-  терминальные — воркер при старте подхватывает только `IN_PROGRESS`. В БД хранится имя
-  enum (`NEW`/`IN_PROGRESS`/...), в API-ответе — значение (`new`/`in_progress`/...).
+- **Статусы кампании** (`CampaignStatus`, `app/db/models.py`): `NEW` (при создании) →
+  `start` переводит в `IN_PROGRESS`; `stop` возвращает в `NEW`; воркер по завершении всех
+  получателей ставит `DONE`, а если хотя бы у одного статус `FAILED` —
+  `DONE_WITH_ERRORS` («Завершена с ошибками»); `ERROR` — зарезервированный статус
+  фатального сбоя кампании, сейчас нигде не выставляется. `DONE` и `DONE_WITH_ERRORS`
+  терминальные — воркер подхватывает только `IN_PROGRESS`. В БД хранится имя enum
+  (`NEW`/`IN_PROGRESS`/…), в API-ответе — значение (`new`/`in_progress`/…).
 - **Импорт получателей**: формат вставки жёсткий — ровно две колонки через таб
   (`имя_конфига<TAB>почта`), как копируется диапазон из Google Sheets. Разбор — только в
   `services/import_service.py`; строки с одинаковой почтой группируются в одно письмо с
@@ -98,11 +97,14 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   существующему получателю; повторное имя конфига не задваивается, поэтому повторный импорт
   того же списка безопасен.
 - **Тело письма**: текст кампании плюс имена конфигов столбиком (`MailSender._build_message`).
-  Файлов конфигов пока нет — вернутся отдельной итерацией (BLOB в таблице `configs`).
+  Файлов конфигов пока нет.
 - **Ретраи**: временные ошибки — до 3 попыток с паузой 2/4/8 с и переподключением
   (`mail_sender._is_temporary`); постоянные — `failed`, рассылка продолжается.
 - **Фоновая отправка**: `start` отдаёт `202`, отправляет отдельный поток
   (`services/worker.py`), запущенный в `lifespan`. Запрос не блокируется.
+- **Схема БД**: Alembic не подключён, таблицы создаются `Base.metadata.create_all` в
+  `lifespan`. Миграции писать не нужно — после правки моделей БД пересоздаётся
+  (цель `remake_db` в `Makefile`).
 
 ## Модули — зоны ответственности
 - `core/config.py` — `Settings` (pydantic-settings), `get_settings()` (кеш).
@@ -117,107 +119,100 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 - `services/worker.py` — фоновый поток отправки.
 - `api/*` — роутеры FastAPI; `deps.py` даёт `get_db` и `get_worker`.
 
-## Архитектура
-
-### Бэкенд (FastAPI)
+## Архитектура бэкенда
 - **Слоистая структура.** Путь запроса: `api/*` (роутеры) → `services/*` (бизнес-логика)
   → `db` (ORM). Роутеры тонкие: валидируют вход pydantic-схемами, вызывают сервисы,
   оборачивают результат. Сервисы не зависят от HTTP (`mail_sender` не знает про БД).
 - **Единая обёртка ответов.** Все JSON-эндпоинты данных возвращают
   `ApiEnvelope[T]` = `{status: 'success'|'error', result, error}`. Для каждого ответа —
-  явный подкласс в `schemas/envelope.py` (`CampaignReadEnvelope`,
-  `ListCampaignReadEnvelope`, `MessageOutEnvelope`, …) ради стабильных имён в OpenAPI
-  (generic даёт хешированные суффиксы). Роутеры возвращают `ok(result)`. Ошибки
-  (HTTPException, RequestValidationError, необработанные) перехватываются в `main.py`
-  и тоже оборачиваются в `{status:'error', result:null, error}`.
-- **Конфиг** — `core/config.py` (`Settings` + кешированный `get_settings()`); SMTP и БД
-  из `.env`. **Auth** — нет. **Миграции** — Alembic не подключён, таблицы создаются
-  `Base.metadata.create_all` в `lifespan`.
-- **Отправка** — фоновый поток `services/worker.py`, стартует в `lifespan`; подхватывает
-  «зависшие» кампании со статусом `IN_PROGRESS`. Статусы получателей в БД — механизм
-  возобновления. Валидация ДО отправки — `recipient_service.validate_campaign_ready`;
-  при ошибке `start` отдаёт 400. Ретраи в `mail_sender` (2/4/8 с для временных ошибок).
+  явный подкласс в `schemas/envelope.py` (`CampaignReadEnvelope`, `ImportPreviewEnvelope`,
+  `MessageOutEnvelope`, …) ради стабильных имён в OpenAPI (generic даёт хешированные
+  суффиксы). Роутеры возвращают `ok(result)`. Ошибки (HTTPException,
+  RequestValidationError, необработанные) перехватываются в `main.py` и тоже
+  оборачиваются в `{status:'error', result:null, error}`.
+- **Новый эндпоинт** трогает по порядку: `db/models.py` → `schemas/*` (+ свой подкласс
+  конверта) → `services/*` → `api/*` → регенерация типов фронта.
+- **Auth** — нет (локальное приложение). **CORS** — `CORSMiddleware` в `app/main.py`,
+  список origin в `CORS_ORIGINS` (по умолчанию `http://localhost:5173`): в dev фронт
+  ходит на бэкенд напрямую через `VITE_API_BASE_URL`, vite-прокси убран.
 
-### Фронтенд (admin-front)
-- **Стек:** Vite 8 + Vue 3.5 (`<script setup>` + Composition API) + TypeScript 5.x (закреплён, см. примечание в конце раздела),
-  shadcn-vue поверх Tailwind v4. Node 24 (nvm). Глобальные правила `~/.claude/CLAUDE.md`
-  (TS/Vue/Composables/тесты/импорты) **применяются**.
-- **Слой API — `src/apiService/`** (фасадная архитектура с адаптерами):
-  - `httpClient.ts` — низкоуровневый `fetch`-обёртчик. Базовый URL из `VITE_API_BASE_URL`
-    (по умолчанию `/api`). Vite-прокси для `/api` **убран**: в dev запросы идут напрямую на
-    бэкенд, заданный через `VITE_API_BASE_URL` (см. `admin-front/.env.example`, обычно
-    `http://localhost:8000/api`), поэтому на бэкенде включён **CORS** через `CORSMiddleware` в
-    `app/main.py` (список разрешённых origin — `CORS_ORIGINS` в `.env`, по умолчанию
-    `["http://localhost:5173"]`); в проде при same-origin CORS не мешает.
-    Бросает ошибку при `!response.ok` или `status === 'error'`.
-  - `types/vibe-mail.ts` — **сгенерировано** из бэкенд-`/openapi.json` через
-    `openapi-typescript` (скрипт `npm run generate:api`, файл в `.eslintignore`).
-    Wire-типы берутся отсюда (`components['schemas']`).
-  - `index.ts` — **корневой баррель**: собирает доменные сервисы в единый фасад
-    `apiService` (использование: `apiService.campaigns.getCampaigns()`, `.getCampaign()`,
-    `.createCampaign()`, `.deleteCampaign()`, `.startCampaign()`;
-    `apiService.recipients.getRecipients()`, `.previewRecipientsImport()`,
-    `.importRecipients()`).
-  - **На каждый домен — своя папка** (например, `campaigns/`):
-    - `campaignsApiTypes.ts` — доменные типы (camelCase, без обёртки) + wire-типы
-      (из сгенерированной схемы).
-    - `apiService.ts` — методы домена: вызывают `httpClient`, прогоняют параметры/ответ
-      через адаптеры, возвращают доменные данные.
-    - `adapters/` — для чтения: `campaignsListAdapter.ts`, `campaignsItemAdapter.ts`; для
-      действий — verb-first: `createCampaignAdapter.ts`, `deleteCampaignAdapter.ts`. Каждый
-      дефолт-экспорт = `{ adaptParams, adaptResponseData }`: `adaptParams` маппит доменные
-      входные данные → wire (тело/query), `adaptResponseData` снимает обёртку
-      `{status,result,error}` и маппит `result` → доменные типы (snake_case → camelCase).
-  - **Поток вызова:** компонент/компосабл → `apiService.<domain>.<method>(input)` →
-    `adapter.adaptParams(input)` → `httpClient.<method>` → `adapter.adaptResponseData(wire)`.
-- **Компосаблы** (`src/composables/`): базовый `useApiService` (обёртка вызова API —
-  `isLoading`/`data`/`execute`/`onDone`/`onError`; ошибки пишутся в консоль) лежит в корне
-  `composables/`. Доменные компосаблы, работающие с API, лежат в `src/composables/data/` и
-  строятся поверх `useApiService` + фасада `apiService`: в `useApiService` передаётся ссылка
-  на метод API-сервиса, а название компосабла повторяет метод, напр. `getCampaigns` →
-  `useGetCampaigns` (`campaigns: data`, `getCampaigns: execute`); действия — verb-first:
-  `createCampaign` → `useCreateCampaign`, `deleteCampaign` → `useDeleteCampaign`.
-- **Страницы/компоненты** (`src/pages`, `src/components`): порядок блоков в `.vue` —
-  `<template>` → `<script>` → `<style>`; UI только из shadcn (`@/components/ui`). Поиск в
-  тестах — по `data-test`.
+## Архитектура фронтенда
+- **Слой API — `src/apiService/`** (фасад с адаптерами):
+  - `httpClient.ts` — низкоуровневый `fetch`-обёртчик; базовый URL из `VITE_API_BASE_URL`
+    (по умолчанию `/api`); бросает ошибку при `!response.ok` или `status === 'error'`.
+  - `types/vibe-mail.ts` — **генерируется** из бэкендного `/openapi.json` через
+    `openapi-typescript` (скрипт `generate:api`), руками не правится. Wire-типы берутся
+    отсюда (`components['schemas']`).
+  - `index.ts` — корневой баррель: `apiService.campaigns.*`, `apiService.recipients.*`.
+  - **На каждый домен своя папка**: `<domain>ApiTypes.ts` (доменные camelCase-типы +
+    wire-типы), `apiService.ts` (методы домена), `adapters/`.
+  - **Адаптеры**: для чтения — `campaignsListAdapter.ts`, `campaignsItemAdapter.ts`; для
+    действий — verb-first (`createCampaignAdapter.ts`, `importRecipientsAdapter.ts`).
+    Каждый дефолт-экспорт = `{ adaptParams, adaptResponseData }`: `adaptParams` маппит
+    доменный вход → wire, `adaptResponseData` снимает обёртку `{status,result,error}` и
+    переводит snake_case → camelCase.
+  - **Поток вызова:** компонент/композабл → `apiService.<domain>.<method>(input)` →
+    `adapter.adaptParams` → `httpClient` → `adapter.adaptResponseData`.
+- **Композаблы** (`src/composables/`): базовый `useApiService` (`isLoading`/`data`/
+  `execute`/`onDone`/`onError`, ошибки в консоль + тост) лежит в корне. Доменные — в
+  `composables/data/`, по файлу на метод API, имя повторяет метод: `getCampaigns` →
+  `useGetCampaigns` (возвращает `campaigns`/`getCampaigns`), действия verb-first:
+  `importRecipients` → `useImportRecipients`. Каждый экспортирует свой `ERROR_MESSAGE`.
+  Композаблы не вызывают lifecycle-хуки — `onMounted`/`onUnmounted` живут в страницах.
 
-## Заметки
-- Легаси-CLI (`send_mail.py`, `import_csv.py`, `config.example.yaml`) удалён вместе с
-  вложениями. Работа с файлами конфигов вернётся отдельной итерацией.
-- Миграции: Alembic пока **не подключён** — таблицы создаются
-  `Base.metadata.create_all` в `lifespan`. Добавить Alembic, когда схема
-  стабилизируется.
-- `.vscode/` в `.gitignore` (настройки редактора не коммитим).
-- **Фронтенд-админка** живёт в отдельном каталоге `admin-front/` (Vite 8 + Vue 3.5 +
-  TypeScript 5, Node 24 через nvm). Это отдельный npm-проект, не связанный с
-  Pipenv. Глобальные правила `~/.claude/CLAUDE.md` про TS/Vue **применяются** к нему.
-  Запуск: `cd admin-front && npm install && npm run dev`. Подробности — в
-  `PROJECT_MEMORY.md` (раздел «Фронтенд»).
-- **TypeScript закреплён на 5.x** (`typescript: "~5.9.0"` в `admin-front/package.json`),
-  хотя стек иначе современный. Причина: dev-зависимость `openapi-typescript` (нужна для
-  `npm run generate:api`) требует `typescript@^5.x` и пока не имеет TS-6-совместимой
-  версии. Из-за этого при TS 6 `npm install` и `npx shadcn-vue add` падают с peer-конфликтом
-  и требуют `--legacy-peer-deps`. С TS 5 установка и генерация компонентов работают чисто,
-  без флагов. Не поднимайте typescript выше 5.x, пока `openapi-typescript` не поддержит TS 6.
-- **UI-kit шадкн**: в `admin-front` проинициализирован **shadcn-vue** поверх **Tailwind
-  CSS v4** (`@tailwindcss/vite`). Компоненты — исходники в `src/components/ui`,
-  добавляются через `npx shadcn-vue@latest add <name>` (строго из `admin-front`).
-  MCP `shadcnVue` в `opencode.json` настроен с `cwd: "admin-front"`. Корневые
-  npm-артефакты, которые установщик скилла слил в корень, удалены — фронт полностью
-  изолирован в `admin-front/`.
-- **Порядок блоков в `.vue`-файлах (наши компоненты):** сначала `<template>`,
-  затем `<script>` (`setup`), затем `<style>`. Относится к проектным файлам
-  (`src/App.vue`, `src/components/*` кроме `ui/`, будущие страницы/компоненты).
-  Сгенерированные shadcn-компоненты в `src/components/ui/*` не трогаем — их
-  перезаписывает тулинг при обновлениях. Если сгенерированный компонент
-  требует глобальный CSS (пример: `vue-sonner/style.css` для
-  `src/components/ui/sonner`), этот CSS импортируем **глобально** в
-  `src/style.css` через `@import 'vue-sonner/style.css';`, а НЕ внутри файлов
-  `src/components/ui/**` (иначе правка слетит при следующем `shadcn-vue add`).
-- **UI-элементы — только из shadcn:** кнопки берём из `@/components/ui/button`
-  (`Button`), свою реализацию кнопок/инпутов/карточек не пишем. Любой элемент
-  интерфейса — из shadcn (или добавляем через `npx shadcn-vue@latest add <name>`),
-  а не кастомная вёрстка `div`/`button`.
-- **Комментарии в фронтенде (`admin-front`):** избыточные комментарии не нужны. Не
-  дублируй в комментариях в начале файла то, что и так понятно из имени файла и кода
-  (назначение файла, очевидные шаги). Комментируй только нетривиальную логику.
+## Конвенции фронтенда
+- **Стили наших компонентов — CSS Modules**, не Tailwind: `<style module>` и
+  `:class="$style.foo"`. Tailwind остаётся только для сгенерированных
+  `src/components/ui/**`, убирать его нельзя.
+- **Имя корневого класса = имя компонента** в camelCase: `CampaignsTable.vue` →
+  `.campaignsTable`, `CampaignDetailsPage.vue` → `.campaignDetailsPage`. Внутренние классы
+  именуются по смыслу (`.headerRow`, `.infoCard`, `.statusNew`). Исключение —
+  `SidebarMenu.vue`: его корень `<SidebarGroup>` без класса.
+- **Токены темы — через CSS-переменные** (`var(--foreground)`, `var(--muted-foreground)`,
+  `var(--destructive)`, `var(--border)`, `var(--radius-md)`); цвета статусных бейджей
+  заданы литералами с тёмной веткой через `:global(.dark) .statusX`.
+- **`!important` не используем**: стили SFC-модуля инжектятся после глобального Tailwind,
+  поэтому при равной специфичности наш класс перебивает базовый вариант по порядку
+  каскада, а тёмная ветка выигрывает по специфичности.
+- **`src/components/ui/**` не правим руками** — CLI shadcn перезаписывает эти файлы.
+  Компоненты добавляются через shadcn-vue CLI строго из каталога `admin-front`. Если
+  сгенерированному компоненту нужен глобальный CSS (например `vue-sonner/style.css`), он
+  импортируется в `src/style.css`, а не внутри `ui/**`.
+- **UI-элементы — только из shadcn** (`@/components/ui/*`): свою вёрстку кнопок, инпутов
+  и карточек из `div`/`button` не пишем.
+- **Порядок блоков в `.vue`**: `<template>` → `<script setup lang="ts">` → `<style module>`.
+- **`data-test`** — на всех интерактивных элементах и строках списков (по ним ищут в тестах).
+- **Полинг** (`CampaignsPage.vue`, `CampaignDetailsPage.vue`): интервал 3 с, опрашиваем
+  **только пока есть кампания в `in_progress`**; флаг `pollInFlight` защищает от
+  наложения запросов; таймер снимается в `onUnmounted`; скелетоны показываются только при
+  первой загрузке, фоновые тики обновляют данные тихо.
+- **Комментарии**: не дублируем в комментариях то, что видно из имени файла и кода;
+  комментируем только нетривиальную логику.
+
+## Принятые решения и их причины
+- **Конфиги вместо вложений.** Работа с файлами (модель `Attachment`, роутер вложений,
+  импорт CSV, лимиты размера, легаси-CLI) вырезана из проекта целиком. Вместо неё —
+  модель `Config` (`recipient_id` + `name`): пока это только имя конфига, которое уезжает
+  в тело письма столбиком.
+- **Файлы конфигов вернутся в ту же таблицу.** Планируется хранить их **в БД** (`filename`,
+  `content` BLOB, `size` в таблице `configs`) — конфиги WireGuard весят единицы килобайт.
+  Поэтому отдельной сущности под файл заводить не нужно.
+- **Формат вставки жёсткий** — ровно две колонки через таб. Именно так Google Sheets
+  кладёт в буфер скопированный диапазон, а textarea принимает plain-text flavor. От
+  альтернативных разделителей, третьей колонки, автоопределения порядка колонок и
+  нечёткого матчинга отказались сознательно, чтобы не усложнять.
+- **Парсинг только на бэке** — одно место (`services/import_service.py`). Он нормализует
+  `\r\n` и невидимые символы (NBSP, zero-width, BOM) и группирует строки по `email.lower()`,
+  сохраняя исходное написание адреса.
+- **Предпросмотр отделён от импорта**: `preview` — dry-run, ничего не пишет, и показывает
+  только те конфиги, которых у получателя ещё нет (уже заведённые — отдельным полем
+  `existing_configs`), чтобы цифры совпадали с тем, что реально добавится.
+- **Первая колонка — имя конфига, а не человека**, поэтому при импорте `Recipient.name`
+  остаётся `None` и в `To:` уходит голый адрес.
+
+## Известные недоделки
+- Диалог импорта (`AddRecipientsDialog.vue`) закрывается кликом мимо окна и чистит
+  textarea — вставленный текст теряется. Отложено осознанно.
+- В `Pipfile` остался `pyyaml` от удалённого легаси-CLI: в `app/` он больше не используется.
+- В рабочей копии лежит каталог `attachments/` с тестовыми файлами от удалённой фичи
+  вложений.
