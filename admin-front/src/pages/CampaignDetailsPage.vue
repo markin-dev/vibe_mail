@@ -34,12 +34,12 @@
       </div>
 
       <Button
-        :disabled="buttonLoading"
+        :disabled="isButtonDisabled"
         data-test="start-button"
         @click="onStart"
       >
         <LoaderCircle
-          v-if="buttonLoading"
+          v-if="isButtonLoading"
           class="h-4 w-4 animate-spin"
         />
 
@@ -107,11 +107,6 @@
         <h2 class="text-lg font-semibold">
           Лог отправленных писем
         </h2>
-
-        <LoaderCircle
-          v-if="isLoadingRecipients && !isInitRecipientsLoading"
-          class="h-4 w-4 animate-spin text-muted-foreground"
-        />
       </div>
 
       <Table>
@@ -288,16 +283,27 @@ const progressTotals = computed(() => {
 const effectiveStatus = computed(() => campaign.value?.status);
 const currentStatus = computed<CampaignStatus>(() => effectiveStatus.value ?? 'new');
 
-const buttonLoading = computed(
-  () => isStarting.value || currentStatus.value === 'in_progress',
+const DISABLED_STATUSES: CampaignStatus[] = ['in_progress', 'done', 'done_with_errors', 'error'];
+
+const isCampaignStarted = ref(false);
+
+const isCompleted = computed(() => DISABLED_STATUSES.includes(currentStatus.value));
+
+const isButtonLoading = computed(
+  () => isCampaignStarted.value || currentStatus.value === 'in_progress',
 );
+
+const isButtonDisabled = computed(
+  () => isCampaignStarted.value || isCompleted.value,
+);
+
 const buttonLabel = computed(() => {
-  if (isStarting.value) {
-    return 'Запуск…';
+  if (isButtonLoading.value) {
+    return 'Рассылка запущена';
   }
 
-  if (currentStatus.value === 'in_progress') {
-    return 'Рассылка запущена';
+  if (isButtonDisabled.value) {
+    return 'Рассылка завершена';
   }
 
   return 'Запустить рассылку';
@@ -357,6 +363,8 @@ function onStart() {
 
 onDone(() => {
   toast.success('Рассылка запущена');
+
+  isCampaignStarted.value = true;
 
   load();
 });
