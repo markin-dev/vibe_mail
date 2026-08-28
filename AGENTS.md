@@ -2,7 +2,7 @@
 
 Путеводитель для AI-агента по проекту **vibe_mail**.
 
-> Проект на **Python 3** (FastAPI + SQLAlchemy + PyYAML). Глобальные правила из
+> Проект на **Python 3** (FastAPI + SQLAlchemy). Глобальные правила из
 > `~/.claude/CLAUDE.md`, касающиеся TypeScript/Vue/Composables, к этому
 > репозиторию не относятся — применяются только общепроектные принципы.
 
@@ -36,9 +36,10 @@ app/
   __main__.py        # python -m app -> uvicorn.run("app.main:app", ...)
   core/              # config.py (Settings), constants.py (EMAIL_RE), logging.py
   db/                # base.py (Base), session.py (engine, get_db), models.py
-  schemas/           # campaign.py, recipient.py, envelope.py (pydantic-модели + обёртка ApiEnvelope)
+  schemas/           # campaign.py, recipient.py, import_recipients.py,
+                     # envelope.py (pydantic-модели + обёртка ApiEnvelope)
   services/          # mail_sender.py (MailSender), recipient_service.py,
-                     # campaign_service.py, worker.py
+                     # campaign_service.py, import_service.py, worker.py
   api/               # deps.py, campaigns.py, recipients.py, health.py
 Makefile             # make dev / make run / make install
 Pipfile / Pipfile.lock
@@ -65,6 +66,8 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 | `GET`  | `/api/campaigns/{id}` | кампания + счётчики |
 | `POST` | `/api/campaigns/{id}/recipients` | добавить получателей (атомарно) |
 | `GET` | `/api/campaigns/{id}/recipients` | список получателей |
+| `POST` | `/api/campaigns/{id}/recipients/preview` | предпросмотр вставленного списка (dry-run) |
+| `POST` | `/api/campaigns/{id}/recipients/import` | импорт вставленного списка (201, частичный) |
 | `POST` | `/api/campaigns/{id}/start` | запуск рассылки (202) |
 | `POST` | `/api/campaigns/{id}/stop` | пауза (статус → NEW) |
 | `DELETE` | `/api/campaigns/{id}` | удалить кампанию (200, MessageOutEnvelope) |
@@ -86,6 +89,16 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   SMTP/валидация), сейчас нигде не выставляется. И `DONE`, и `DONE_WITH_ERRORS`
   терминальные — воркер при старте подхватывает только `IN_PROGRESS`. В БД хранится имя
   enum (`NEW`/`IN_PROGRESS`/...), в API-ответе — значение (`new`/`in_progress`/...).
+- **Импорт получателей**: формат вставки жёсткий — ровно две колонки через таб
+  (`имя_конфига<TAB>почта`), как копируется диапазон из Google Sheets. Разбор — только в
+  `services/import_service.py`; строки с одинаковой почтой группируются в одно письмо с
+  несколькими конфигами. Импорт **частичный, не атомарный**: валидные строки сохраняются,
+  проблемные возвращаются списком с номером строки и причиной (иначе одна строка без почты
+  заблокировала бы весь список). Если почта уже есть в кампании, конфиги дописываются
+  существующему получателю; повторное имя конфига не задваивается, поэтому повторный импорт
+  того же списка безопасен.
+- **Тело письма**: текст кампании плюс имена конфигов столбиком (`MailSender._build_message`).
+  Файлов конфигов пока нет — вернутся отдельной итерацией (BLOB в таблице `configs`).
 - **Ретраи**: временные ошибки — до 3 попыток с паузой 2/4/8 с и переподключением
   (`mail_sender._is_temporary`); постоянные — `failed`, рассылка продолжается.
 - **Фоновая отправка**: `start` отдаёт `202`, отправляет отдельный поток
@@ -94,11 +107,13 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
 ## Модули — зоны ответственности
 - `core/config.py` — `Settings` (pydantic-settings), `get_settings()` (кеш).
 - `core/constants.py` — `EMAIL_RE`.
-- `db/*` — ORM: `Campaign`, `Recipient` + сессия.
+- `db/*` — ORM: `Campaign`, `Recipient`, `Config` + сессия.
 - `schemas/*` — pydantic-модели запрос/ответ (`from_attributes=True`).
 - `services/mail_sender.py` — `MailSender`: connect/build/retry; **не знает про БД**.
 - `services/recipient_service.py` — валидация, добавление получателей, готовность.
 - `services/campaign_service.py` — CRUD кампаний (создание/чтение/смена статуса/удаление), прогресс.
+- `services/import_service.py` — разбор вставленного из таблицы списка (единственное место
+  парсинга), предпросмотр и импорт получателей.
 - `services/worker.py` — фоновый поток отправки.
 - `api/*` — роутеры FastAPI; `deps.py` даёт `get_db` и `get_worker`.
 
@@ -141,7 +156,8 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   - `index.ts` — **корневой баррель**: собирает доменные сервисы в единый фасад
     `apiService` (использование: `apiService.campaigns.getCampaigns()`, `.getCampaign()`,
     `.createCampaign()`, `.deleteCampaign()`, `.startCampaign()`;
-    `apiService.recipients.getRecipients()`).
+    `apiService.recipients.getRecipients()`, `.previewRecipientsImport()`,
+    `.importRecipients()`).
   - **На каждый домен — своя папка** (например, `campaigns/`):
     - `campaignsApiTypes.ts` — доменные типы (camelCase, без обёртки) + wire-типы
       (из сгенерированной схемы).

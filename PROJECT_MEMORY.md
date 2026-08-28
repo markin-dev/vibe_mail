@@ -48,8 +48,9 @@ app/
   __main__.py        # python -m app -> uvicorn.run("app.main:app", ...)
   core/              # config.py (Settings), constants.py (EMAIL_RE), logging.py
   db/                # base.py (Base), session.py (engine, get_db), models.py
-  schemas/           # campaign.py, recipient.py (pydantic-модели)
-  services/          # mail_sender.py (MailSender), recipient_service, campaign_service, worker
+  schemas/           # campaign.py, recipient.py, import_recipients.py (pydantic-модели)
+  services/          # mail_sender.py (MailSender), recipient_service, campaign_service,
+                     # import_service, worker
   api/               # deps.py, campaigns.py, recipients.py, health.py
 Makefile
 Pipfile / Pipfile.lock
@@ -145,10 +146,36 @@ PROJECT_MEMORY.md    # эта память
 `BASE64_OVERHEAD`, легаси-CLI (`send_mail.py`, `import_csv.py`, `config.example.yaml`) и
 колонка «Вложения» в админке. `MailSender.send` больше не принимает список файлов.
 
-Дальше на их место приходит модель `Config` (`recipient_id` + `name`): имена конфигов
-уходят в тело письма столбиком, а хранение самих файлов **в БД** (BLOB в той же таблице
-`configs`) планируется следующей итерацией — поэтому отдельной таблицы под файлы не
-заводим.
+На их место пришла модель `Config` (`recipient_id` + `name`): имена конфигов уходят в
+тело письма столбиком под текстом кампании. Хранение самих файлов **в БД** (BLOB в той же
+таблице `configs`) планируется следующей итерацией — поэтому отдельной таблицы под файлы
+не заводим.
+
+### Как добавляются получатели
+Формат вставки жёсткий и обсуждён с пользователем: **ровно две колонки через таб**
+(`имя_конфига<TAB>почта`) — именно так Google Sheets кладёт в буфер скопированный
+диапазон. Никаких альтернативных разделителей, третьей колонки, автоопределения порядка
+колонок и нечёткого матчинга — от всего этого отказались сознательно, чтобы не усложнять.
+
+Парсинг живёт **только на бэке**, в `services/import_service.py` (пользователь просил
+одно место). Он нормализует `\r\n` и невидимые символы (NBSP, zero-width, BOM),
+группирует строки по `email.lower()` и возвращает список проблемных строк.
+
+- `POST /campaigns/{id}/recipients/preview` — dry-run, ничего не пишет; в `configs`
+  попадают только конфиги, которых у получателя ещё нет, уже заведённые — отдельным
+  полем `existing_configs`.
+- `POST /campaigns/{id}/recipients/import` — импорт **частичный**: валидные строки
+  сохраняются, проблемные возвращаются списком (иначе одна строка без почты
+  заблокировала бы весь список). Получатель привязан к кампании, поэтому один адрес в
+  разных кампаниях — независимые записи; внутри одной кампании конфиги дописываются
+  существующему получателю, повторные имена не задваиваются.
+
+На фронте — `components/AddRecipientsDialog.vue` (shadcn `Dialog`): textarea → предпросмотр
+со сводкой «N строк → M писем», блоком проблемных строк и группами по почтам → импорт.
+Открывается с страницы кампании и доступен только пока кампания в статусе `new`.
+
+Известная недоделка (пользователь в курсе, отложено): диалог закрывается кликом мимо окна
+и чистит textarea — вставленный текст теряется.
 
 ## Прогресс реализации (по шагам)
 - [x] **Шаг 1** — каркас: `app/__init__.py`, `app/core/*` (config, constants, logging);

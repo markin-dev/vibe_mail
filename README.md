@@ -54,6 +54,8 @@ pipenv run python -m app --reload --port 8000
 | `GET` | `/api/campaigns/{id}` | кампания + счётчики |
 | `POST` | `/api/campaigns/{id}/recipients` | добавить получателей (`{"items": [...]}`), атомарно |
 | `GET` | `/api/campaigns/{id}/recipients` | список получателей |
+| `POST` | `/api/campaigns/{id}/recipients/preview` | предпросмотр вставленного списка, ничего не пишет |
+| `POST` | `/api/campaigns/{id}/recipients/import` | импорт вставленного списка |
 | `POST` | `/api/campaigns/{id}/start` | запустить рассылку (202, воркер отправляет в фоне) |
 | `POST` | `/api/campaigns/{id}/stop` | приостановить рассылку |
 | `DELETE` | `/api/recipients/{rid}` | удалить получателя |
@@ -72,8 +74,21 @@ curl -X POST http://127.0.0.1:8000/api/campaigns/1/recipients \
 curl -X POST http://127.0.0.1:8000/api/campaigns/1/start
 ```
 
+Импорт списка из таблицы (две колонки через таб — имя конфига и почта):
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/campaigns/1/recipients/import \
+  -H 'Content-Type: application/json' \
+  --data-binary $'{"text":"Markin_Sergey\tshpenator@gmail.com\nMarkin_Sergey_2\tshpenator@gmail.com"}'
+```
+
 ## Как это работает
 
+- **Получатели и конфиги.** Список вставляется как две колонки из таблицы (имя конфига
+  и почта, разделитель — таб). Строки с одинаковой почтой объединяются в одно письмо с
+  несколькими конфигами. Сначала `preview` показывает, что получится, потом `import`
+  сохраняет: валидные строки создаются, проблемные возвращаются списком с номером строки.
+  Имена конфигов уезжают в тело письма столбиком под текстом кампании.
 - **Валидация до отправки.** Адреса проверяются при добавлении получателей
   (синтаксис, дубликаты в рамках кампании), а при `start` — готовность кампании.
   При любой проблеме — `400` со списком, старт не происходит.
