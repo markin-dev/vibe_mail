@@ -28,7 +28,10 @@ _EXPECTED_COLUMNS = 2
 
 @dataclass
 class ParsedGroup:
-    """Получатель и его конфиги в порядке появления во вставке."""
+    """Получатель и его конфиги в порядке появления во вставке.
+
+    Почта уже приведена к нижнему регистру — в таком виде она и уходит в БД.
+    """
 
     email: str
     configs: list[str] = field(default_factory=list)
@@ -36,6 +39,9 @@ class ParsedGroup:
 
 def parse_recipients_text(text: str) -> tuple[list[ParsedGroup], list[ImportRowProblem]]:
     """Разбирает вставленный текст в группы «почта → конфиги» и список проблем.
+
+    Почта приводится к нижнему регистру, поэтому строки, отличающиеся только регистром
+    адреса, попадают в одну группу (и в одно письмо).
 
     Проблемная строка не импортируется, но и не блокирует остальные: возвращается
     отдельным списком с номером строки, исходным текстом и причиной.
@@ -62,7 +68,7 @@ def parse_recipients_text(text: str) -> tuple[list[ParsedGroup], list[ImportRowP
             )
             continue
 
-        config_name, email = cells
+        config_name, email = cells[0], cells[1].lower()
         if not config_name:
             problems.append(
                 ImportRowProblem(line=lineno, raw=raw, reason="не указано имя конфига")
@@ -77,7 +83,7 @@ def parse_recipients_text(text: str) -> tuple[list[ParsedGroup], list[ImportRowP
             )
             continue
 
-        group = grouped.setdefault(email.lower(), ParsedGroup(email=email))
+        group = grouped.setdefault(email, ParsedGroup(email=email))
         group.configs.append(config_name)
 
     return list(grouped.values()), problems
@@ -113,7 +119,7 @@ def build_preview(db: Session, campaign_id: int, text: str) -> ImportPreview:
 
     preview_groups = []
     for group in groups:
-        recipient = existing.get(group.email.lower())
+        recipient = existing.get(group.email)
         existing_configs = [c.name for c in recipient.configs] if recipient else []
 
         preview_groups.append(
@@ -149,7 +155,7 @@ def import_recipients(db: Session, campaign_id: int, text: str) -> ImportResult:
     created_configs = 0
 
     for group in groups:
-        recipient = existing.get(group.email.lower())
+        recipient = existing.get(group.email)
 
         if recipient is None:
             recipient = Recipient(

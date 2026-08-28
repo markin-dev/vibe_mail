@@ -17,6 +17,9 @@ def validate_email(email: str) -> bool:
 def add_recipients(db: Session, campaign_id: int, items: list[RecipientCreate]) -> list[Recipient]:
     """Добавляет получателей с валидацией.
 
+    Почта приводится к нижнему регистру — в таком виде и сохраняется, как при импорте
+    вставленного списка (`import_service`).
+
     Атомарно: при любой ошибке (некорректный синтаксис, дубликат в кампании или в
     пакете) ничего не создаётся, возвращается HTTPException 400 со списком проблем.
     """
@@ -29,15 +32,14 @@ def add_recipients(db: Session, campaign_id: int, items: list[RecipientCreate]) 
     to_create: list[Recipient] = []
 
     for idx, item in enumerate(items, start=1):
-        email = item.email.strip()
+        email = item.email.strip().lower()
         if not email or not validate_email(email):
             problems.append(f"recipients[{idx}]: некорректный адрес {email!r}")
             continue
-        key = email.lower()
-        if key in seen:
+        if email in seen:
             problems.append(f"recipients[{idx}]: дубликат адреса {email}")
             continue
-        seen.add(key)
+        seen.add(email)
         recipient = Recipient(
             campaign_id=campaign_id,
             email=email,
