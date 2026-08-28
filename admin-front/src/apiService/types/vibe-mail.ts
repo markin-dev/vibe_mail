@@ -58,23 +58,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/campaigns/{campaign_id}/import-csv": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import Csv */
-        post: operations["import_csv_api_campaigns__campaign_id__import_csv_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/campaigns/{campaign_id}/start": {
         parameters: {
             query?: never;
@@ -126,23 +109,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/campaigns/{campaign_id}/recipients/{recipient_id}/attachments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Upload Attachment */
-        post: operations["upload_attachment_api_campaigns__campaign_id__recipients__recipient_id__attachments_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -164,43 +130,6 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /**
-         * AttachmentRead
-         * @description Ответ: метаданные вложения.
-         */
-        AttachmentRead: {
-            /** Id */
-            id: number;
-            /** Filename */
-            filename: string;
-            /** Size */
-            size: number;
-        };
-        /**
-         * AttachmentReadEnvelope
-         * @description Обёртка вложения.
-         */
-        AttachmentReadEnvelope: {
-            /**
-             * Status
-             * @default success
-             * @enum {string}
-             */
-            status: "success" | "error";
-            result?: components["schemas"]["AttachmentRead"] | null;
-            /** Error */
-            error?: string | null;
-        };
-        /** Body_import_csv_api_campaigns__campaign_id__import_csv_post */
-        Body_import_csv_api_campaigns__campaign_id__import_csv_post: {
-            /** File */
-            file: string;
-        };
-        /** Body_upload_attachment_api_campaigns__campaign_id__recipients__recipient_id__attachments_post */
-        Body_upload_attachment_api_campaigns__campaign_id__recipients__recipient_id__attachments_post: {
-            /** File */
-            file: string;
-        };
         /**
          * CampaignRead
          * @description Ответ: данные кампании + необязательные счётчики прогресса.
@@ -261,43 +190,6 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
-        };
-        /**
-         * ImportCsvResult
-         * @description Результат импорта получателей из CSV.
-         */
-        ImportCsvResult: {
-            /** Created */
-            created: number;
-            /**
-             * Skipped
-             * @default []
-             */
-            skipped: [
-                number,
-                string,
-                string
-            ][];
-            /**
-             * Problems
-             * @default []
-             */
-            problems: string[];
-        };
-        /**
-         * ImportCsvResultEnvelope
-         * @description Обёртка результата импорта CSV.
-         */
-        ImportCsvResultEnvelope: {
-            /**
-             * Status
-             * @default success
-             * @enum {string}
-             */
-            status: "success" | "error";
-            result?: components["schemas"]["ImportCsvResult"] | null;
-            /** Error */
-            error?: string | null;
         };
         /**
          * ListCampaignReadEnvelope
@@ -368,7 +260,7 @@ export interface components {
         };
         /**
          * RecipientRead
-         * @description Ответ: получатель со статусом и списком вложений.
+         * @description Ответ: получатель со статусом отправки.
          */
         RecipientRead: {
             /** Id */
@@ -384,11 +276,6 @@ export interface components {
             error?: string | null;
             /** Sent At */
             sent_at?: string | null;
-            /**
-             * Attachments
-             * @default []
-             */
-            attachments: components["schemas"]["AttachmentRead"][];
         };
         /**
          * RecipientStatus
@@ -606,41 +493,6 @@ export interface operations {
             };
         };
     };
-    import_csv_api_campaigns__campaign_id__import_csv_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                campaign_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_import_csv_api_campaigns__campaign_id__import_csv_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportCsvResultEnvelope"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     start_campaign_api_campaigns__campaign_id__start_post: {
         parameters: {
             query?: never;
@@ -720,42 +572,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_attachment_api_campaigns__campaign_id__recipients__recipient_id__attachments_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                campaign_id: number;
-                recipient_id: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_attachment_api_campaigns__campaign_id__recipients__recipient_id__attachments_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AttachmentReadEnvelope"];
-                };
             };
             /** @description Validation Error */
             422: {

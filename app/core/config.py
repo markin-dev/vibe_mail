@@ -4,7 +4,6 @@
 Пароль SMTP — только здесь (SMTP_PASSWORD), в конфиг не попадает.
 """
 from functools import lru_cache
-from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -23,10 +22,7 @@ class Settings(BaseSettings):
     # --- База данных ---
     DATABASE_URL: str = "sqlite:///./vibe_mail.db"
 
-    # --- Вложения и лимиты отправки ---
-    ATTACHMENTS_DIR: Path = Path("attachments")
-    MAX_ATTACHMENT_BYTES: int = 25 * 1024 * 1024
-    BASE64_OVERHEAD: float = 1.37
+    # --- Лимиты отправки ---
     RETRIES: int = 3
     DEFAULT_DELAY: float = 2.0
 

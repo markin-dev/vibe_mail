@@ -1,8 +1,4 @@
 .env
-config.yaml
-config.yaml.bak
-sent.log
-attachments/
 .venv/
 .vscode/
 __pycache__/
@@ -10,3 +6,4 @@ __pycache__/
 vibe_mail.db
 node_modules
 .agents
+attachments/**/*

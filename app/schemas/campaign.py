@@ -33,11 +33,3 @@ class MessageOut(BaseModel):
 
     detail: str
     campaign_id: int
-
-
-class ImportCsvResult(BaseModel):
-    """Результат импорта получателей из CSV."""
-
-    created: int
-    skipped: list[tuple[int, str, str]] = []
-    problems: list[str] = []

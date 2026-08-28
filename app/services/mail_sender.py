@@ -2,13 +2,12 @@
 
 Инкапсулирует всю работу с smtplib: подключение (SSL/STARTTLS), сборку
 письма, ретраи с переподключением. Не знает про базу данных — получает
-готовые объекты кампании/получателя и пути к файлам вложений.
+готовые объекты кампании и получателя.
 """
 from __future__ import annotations
 
 import contextlib
 import logging
-import mimetypes
 import smtplib
 import ssl
 import time
@@ -17,8 +16,6 @@ from email.utils import formataddr
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from app.core.config import Settings
     from app.db.models import Campaign, Recipient
 
@@ -55,9 +52,7 @@ class MailSender:
         log.info("Подключено к %s:%s как %s", host, port, self.settings.SMTP_USER)
         return smtp
 
-    def _build_message(
-        self, campaign: Campaign, recipient: Recipient, files: list[Path]
-    ) -> EmailMessage:
+    def _build_message(self, campaign: Campaign, recipient: Recipient) -> EmailMessage:
         """Собирает EmailMessage из данных кампании и получателя."""
         sender = self.settings.SMTP_USER
         msg = EmailMessage()
@@ -70,12 +65,6 @@ class MailSender:
         msg["Subject"] = campaign.subject
         msg.set_content(campaign.body)
 
-        for path in files:
-            ctype, _ = mimetypes.guess_type(path.name)
-            maintype, _, subtype = (ctype or "application/octet-stream").partition("/")
-            msg.add_attachment(
-                path.read_bytes(), maintype=maintype, subtype=subtype, filename=path.name
-            )
         return msg
 
     @staticmethod
@@ -91,15 +80,13 @@ class MailSender:
     # Публичное API
     # ------------------------------------------------------------------ #
 
-    def send(
-        self, campaign: Campaign, recipient: Recipient, files: list[Path]
-    ) -> tuple[bool, str | None]:
+    def send(self, campaign: Campaign, recipient: Recipient) -> tuple[bool, str | None]:
         """Отправляет письмо с ретрами.
 
         Возвращает (успех, текст_ошибки). При постоянной ошибке (5xx, отказ
         получателя/отправителя) возвращает неуспех сразу, без повторов.
         """
-        msg = self._build_message(campaign, recipient, files)
+        msg = self._build_message(campaign, recipient)
         last_exc: Exception | None = None
 
         for attempt in range(1, self.settings.RETRIES + 1):

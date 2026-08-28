@@ -2,12 +2,6 @@ import type { components } from '@/apiService/types/vibe-mail';
 
 export type RecipientStatus = 'pending' | 'sent' | 'failed';
 
-export interface Attachment {
-  id: number;
-  filename: string;
-  size: number;
-}
-
 export interface Recipient {
   id: number;
   campaignId: number;
@@ -16,7 +10,6 @@ export interface Recipient {
   status: RecipientStatus;
   error: string | null;
   sentAt: string | null;
-  attachments: Attachment[];
 }
 
 export interface GetRecipientsInput {

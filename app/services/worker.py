@@ -9,7 +9,6 @@ import logging
 import threading
 import time
 from datetime import UTC, datetime
-from pathlib import Path
 
 from app.core.config import Settings
 from app.db.models import Campaign, CampaignStatus, Recipient, RecipientStatus
@@ -76,8 +75,7 @@ class Worker:
                         for r in pending:
                             if self._stop.is_set():
                                 break
-                            files = [Path(a.stored_path) for a in r.attachments]
-                            ok, err = self.mail_sender.send(camp, r, files)
+                            ok, err = self.mail_sender.send(camp, r)
                             r.status = RecipientStatus.SENT if ok else RecipientStatus.FAILED
                             r.error = err
                             r.sent_at = (

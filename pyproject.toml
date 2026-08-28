@@ -1,8 +1,6 @@
 [tool.ruff]
 line-length = 88
 target-version = "py313"
-# Легаси-CLI (логика перенесена в app/services), не поддерживаем как продукт
-exclude = ["send_mail.py", "import_csv.py"]
 
 [tool.ruff.lint]
 select = [

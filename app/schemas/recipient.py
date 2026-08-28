@@ -19,18 +19,8 @@ class RecipientsBulk(BaseModel):
     items: list[RecipientCreate]
 
 
-class AttachmentRead(BaseModel):
-    """Ответ: метаданные вложения."""
-
-    id: int
-    filename: str
-    size: int
-
-    model_config = {"from_attributes": True}
-
-
 class RecipientRead(BaseModel):
-    """Ответ: получатель со статусом и списком вложений."""
+    """Ответ: получатель со статусом отправки."""
 
     id: int
     campaign_id: int
@@ -39,6 +29,5 @@ class RecipientRead(BaseModel):
     status: RecipientStatus
     error: str | None = None
     sent_at: datetime | None = None
-    attachments: list[AttachmentRead] = []
 
     model_config = {"from_attributes": True}

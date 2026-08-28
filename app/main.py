@@ -6,7 +6,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import attachments, campaigns, health, recipients
+from app.api import campaigns, health, recipients
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.base import Base
@@ -74,5 +74,4 @@ async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONRespons
 
 app.include_router(campaigns.router)
 app.include_router(recipients.router)
-app.include_router(attachments.router)
 app.include_router(health.router)

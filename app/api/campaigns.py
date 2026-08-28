@@ -1,18 +1,12 @@
 """Роутер кампаний и связанных с ними операций."""
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_worker
 from app.db.models import CampaignStatus
-from app.schemas.campaign import (
-    CampaignRead,
-    CreateCampaign,
-    ImportCsvResult,
-    MessageOut,
-)
+from app.schemas.campaign import CampaignRead, CreateCampaign, MessageOut
 from app.schemas.envelope import (
     CampaignReadEnvelope,
-    ImportCsvResultEnvelope,
     ListCampaignReadEnvelope,
     ListRecipientReadEnvelope,
     MessageOutEnvelope,
@@ -63,15 +57,6 @@ def add_recipients(campaign_id: int, payload: RecipientsBulk, db: Session = Depe
 def list_recipients(campaign_id: int, db: Session = Depends(get_db)):
     cs.get_campaign(db, campaign_id)
     return ok(rs.get_recipients(db, campaign_id))
-
-
-@router.post("/{campaign_id}/import-csv", response_model=ImportCsvResultEnvelope)
-async def import_csv(
-    campaign_id: int, file: UploadFile = File(...), db: Session = Depends(get_db)
-):
-    cs.get_campaign(db, campaign_id)
-    content = await file.read()
-    return ok(ImportCsvResult(**cs.import_csv(db, campaign_id, content)))
 
 
 @router.post(

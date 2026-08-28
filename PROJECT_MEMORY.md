@@ -50,22 +50,21 @@ app/
   db/                # base.py (Base), session.py (engine, get_db), models.py
   schemas/           # campaign.py, recipient.py (pydantic-модели)
   services/          # mail_sender.py (MailSender), recipient_service, campaign_service, worker
-  api/               # deps.py, campaigns.py, recipients.py, attachments.py, health.py
+  api/               # deps.py, campaigns.py, recipients.py, health.py
 Makefile
 Pipfile / Pipfile.lock
 PROJECT_MEMORY.md    # эта память
 ```
 
 ## Инварианты (сохранять из оригинала send_mail.py)
-- **Валидация ДО отправки:** синтаксис email (`EMAIL_RE`), дубликаты в рамках кампании,
-  наличие/читаемость файлов, лимит вложений 25 МБ × 1.37 (base64 overhead). При ошибке —
-  список проблем, ничего не отправляем.
+- **Валидация ДО отправки:** синтаксис email (`EMAIL_RE`) и дубликаты в рамках кампании
+  при добавлении получателей, готовность кампании — при `start`. При ошибке — список
+  проблем, ничего не отправляем.
 - **Возобновление:** `sent` пропускаем; при старте процесса «зависшие» running-кампании
   подхватываются воркером.
 - **Ретраи:** временные ошибки (4xx, обрыв, таймаут) — до 3 попыток с паузой 2/4/8 с и
   переподключением; постоянные (5xx, отказ получателя/отправителя) — `failed`, рассылка
   продолжается.
-- Относительные пути вложений резолвятся относительно `ATTACHMENTS_DIR`.
 
 ## Фронтенд (admin-front) — админка
 - Каталог `admin-front/` — отдельный npm-проект (не зависит от Pipenv/Python).
@@ -138,6 +137,19 @@ PROJECT_MEMORY.md    # эта память
   `.infoCard`, `.statusNew`, `.skId` и пр.) именуются по смыслу. `SidebarMenu.vue` исключение: его
   корень — `<SidebarGroup>` без класса, а `:class="$style.menu"` висит на вложенном `<SidebarMenu>`.
 
+## Решение: конфиги вместо вложений (2026-08-28)
+Списки на рассылку приходят как две колонки из Google Sheets — имя конфига и почта.
+Файлов конфигов на этой итерации нет вообще, поэтому **всё, что связано с вложениями и
+файлами, вырезано из проекта**: модель `Attachment`, роутер `app/api/attachments.py`,
+`add_attachment`, `import_csv`, настройки `ATTACHMENTS_DIR` / `MAX_ATTACHMENT_BYTES` /
+`BASE64_OVERHEAD`, легаси-CLI (`send_mail.py`, `import_csv.py`, `config.example.yaml`) и
+колонка «Вложения» в админке. `MailSender.send` больше не принимает список файлов.
+
+Дальше на их место приходит модель `Config` (`recipient_id` + `name`): имена конфигов
+уходят в тело письма столбиком, а хранение самих файлов **в БД** (BLOB в той же таблице
+`configs`) планируется следующей итерацией — поэтому отдельной таблицы под файлы не
+заводим.
+
 ## Прогресс реализации (по шагам)
 - [x] **Шаг 1** — каркас: `app/__init__.py`, `app/core/*` (config, constants, logging);
   Pipenv-конфиг (`Pipfile`, `Pipfile.lock`), `requirements.txt` удалён.
@@ -167,7 +179,5 @@ PROJECT_MEMORY.md    # эта память
 ## Заметки
 - Глобальные правила из `~/.claude/CLAUDE.md` про TypeScript/Vue к этому Python-проекту
   не относятся (зафиксировано в AGENTS.md).
-- Оригинальные `send_mail.py` / `import_csv.py` пока в репозитории: их логика
-  переносится в `app/services/*`; после переноса можно удалить/пометить устаревшими.
 - `app/__main__.py` импортирует `app.main`, которого ещё нет — `python -m app`
   заработает только после Шага 7 (создание `app/main.py`).

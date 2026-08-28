@@ -121,7 +121,6 @@
             </TableHead>
 
             <TableHead>Отправлено</TableHead>
-            <TableHead>Вложения</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -137,14 +136,13 @@
               <TableCell><Skeleton :class="$style.skStatus" /></TableCell>
               <TableCell><Skeleton :class="$style.skError" /></TableCell>
               <TableCell><Skeleton :class="$style.skSent" /></TableCell>
-              <TableCell><Skeleton :class="$style.skAttach" /></TableCell>
             </TableRow>
           </template>
 
           <template v-else>
             <TableEmpty
               v-if="recipientsList.length === 0"
-              :colspan="6"
+              :colspan="5"
             >
               Получатели не найдены
             </TableEmpty>
@@ -190,8 +188,6 @@
               <TableCell>
                 {{ recipient.sentAt ? formatDate(recipient.sentAt) : '—' }}
               </TableCell>
-
-              <TableCell>{{ recipient.attachments.length }}</TableCell>
             </TableRow>
           </template>
         </TableBody>
@@ -609,11 +605,6 @@ function formatDate(value: string): string {
 .skSent {
   height: 1rem;
   width: 6rem;
-}
-
-.skAttach {
-  height: 1rem;
-  width: 3rem;
 }
 
 .statusNew {

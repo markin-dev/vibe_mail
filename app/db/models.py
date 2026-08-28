@@ -61,20 +61,3 @@ class Recipient(Base):
     sent_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     campaign: Mapped["Campaign"] = relationship(back_populates="recipients")
-    attachments: Mapped[list["Attachment"]] = relationship(
-        back_populates="recipient", cascade="all, delete-orphan"
-    )
-
-
-class Attachment(Base):
-    __tablename__ = "attachments"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    recipient_id: Mapped[int] = mapped_column(
-        ForeignKey("recipients.id", ondelete="CASCADE"), index=True
-    )
-    filename: Mapped[str] = mapped_column(String(512))
-    stored_path: Mapped[str] = mapped_column(Text)
-    size: Mapped[int] = mapped_column(Integer, default=0)
-
-    recipient: Mapped["Recipient"] = relationship(back_populates="attachments")

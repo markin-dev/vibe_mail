@@ -12,11 +12,6 @@ const adaptRecipient = (recipient: RecipientReadWire): Recipient => ({
   status: recipient.status,
   error: recipient.error ?? null,
   sentAt: recipient.sent_at ?? null,
-  attachments: (recipient.attachments ?? []).map((attachment) => ({
-    id: attachment.id,
-    filename: attachment.filename,
-    size: attachment.size,
-  })),
 });
 
 const listAdapter = {
