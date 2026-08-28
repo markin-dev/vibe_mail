@@ -1,7 +1,7 @@
 <template>
   <div
+    :class="$style.campaignsTable"
     data-test="campaigns-table"
-    class="rounded-md border"
   >
     <Table>
       <TableHeader>
@@ -9,7 +9,11 @@
           <TableHead>ID</TableHead>
           <TableHead>Название</TableHead>
           <TableHead>Тема</TableHead>
-          <TableHead>Статус</TableHead>
+
+          <TableHead :class="$style.statusCell">
+            Статус
+          </TableHead>
+
           <TableHead>Прогресс</TableHead>
           <TableHead>Создана</TableHead>
           <TableHead>Действия</TableHead>
@@ -23,13 +27,13 @@
             :key="n"
             data-test="campaign-skeleton-row"
           >
-            <TableCell><Skeleton class="h-4 w-8" /></TableCell>
-            <TableCell><Skeleton class="h-4 w-40" /></TableCell>
-            <TableCell><Skeleton class="h-4 w-48" /></TableCell>
-            <TableCell><Skeleton class="h-5 w-20 rounded-full" /></TableCell>
-            <TableCell><Skeleton class="h-4 w-16" /></TableCell>
-            <TableCell><Skeleton class="h-4 w-24" /></TableCell>
-            <TableCell><Skeleton class="h-8 w-8 rounded-md" /></TableCell>
+            <TableCell><Skeleton :class="$style.skId" /></TableCell>
+            <TableCell><Skeleton :class="$style.skName" /></TableCell>
+            <TableCell><Skeleton :class="$style.skSubject" /></TableCell>
+            <TableCell><Skeleton :class="$style.skStatus" /></TableCell>
+            <TableCell><Skeleton :class="$style.skProgress" /></TableCell>
+            <TableCell><Skeleton :class="$style.skDate" /></TableCell>
+            <TableCell><Skeleton :class="$style.skAction" /></TableCell>
           </TableRow>
         </template>
 
@@ -49,10 +53,10 @@
           >
             <TableCell>{{ campaign.id }}</TableCell>
 
-            <TableCell class="font-medium">
+            <TableCell :class="$style.cellName">
               <RouterLink
                 :to="{ name: 'campaign-details', params: { id: campaign.id } }"
-                class="hover:underline"
+                :class="$style.link"
                 data-test="campaign-link"
               >
                 {{ campaign.name }}
@@ -85,7 +89,7 @@
                 data-test="delete-button"
                 @click="openDialog(campaign)"
               >
-                <Trash class="h-4 w-4" />
+                <Trash :class="$style.iconBtn" />
               </Button>
             </TableCell>
           </TableRow>
@@ -122,7 +126,7 @@
           >
             <LoaderCircle
               v-if="isDeleting"
-              class="h-4 w-4 animate-spin"
+              :class="$style.spinner"
             />
 
             {{ isDeleting ? 'Удаление…' : 'Удалить' }}
@@ -134,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, useCssModule } from 'vue';
 
 import { LoaderCircle, Trash } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
@@ -177,6 +181,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{ deleted: [] }>();
 
+const styles = useCssModule();
+
 const toast = useToast();
 const { isLoading: isDeleting, deleteCampaign, onDone } = useDeleteCampaign();
 
@@ -217,11 +223,11 @@ const STATUS_LABEL: Record<CampaignStatus, string> = {
 };
 
 const STATUS_CLASS: Record<CampaignStatus, string> = {
-  new: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  done: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  done_with_errors: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  error: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  new: styles.statusNew,
+  in_progress: styles.statusInProgress,
+  done: styles.statusDone,
+  done_with_errors: styles.statusDoneWithErrors,
+  error: styles.statusError,
 };
 
 function statusLabel(status: CampaignStatus): string {
@@ -252,3 +258,123 @@ function processedCount(totals: CampaignTotals): number {
   return totals.total - totals.pending;
 }
 </script>
+
+<style module>
+.statusCell {
+  width: 172px;
+}
+
+.campaignsTable {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.cellName {
+  font-weight: 500;
+}
+
+.link {
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.iconBtn {
+  width: 1rem;
+  height: 1rem;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skId {
+  height: 1rem;
+  width: 2rem;
+}
+
+.skName {
+  height: 1rem;
+  width: 10rem;
+}
+
+.skSubject {
+  height: 1rem;
+  width: 12rem;
+}
+
+.skStatus {
+  height: 1.25rem;
+  width: 5rem;
+  border-radius: 9999px;
+}
+
+.skProgress {
+  height: 1rem;
+  width: 4rem;
+}
+
+.skDate {
+  height: 1rem;
+  width: 6rem;
+}
+
+.skAction {
+  height: 2rem;
+  width: 2rem;
+  border-radius: var(--radius-md);
+}
+
+.statusNew {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.statusInProgress {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+.statusDone {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.statusDoneWithErrors,
+.statusError {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+:global(.dark) .statusNew {
+  background-color: rgba(30, 58, 138, 0.4);
+  color: #93c5fd;
+}
+
+:global(.dark) .statusInProgress {
+  background-color: rgba(113, 63, 18, 0.4);
+  color: #fde047;
+}
+
+:global(.dark) .statusDone {
+  background-color: rgba(20, 83, 45, 0.4);
+  color: #86efac;
+}
+
+:global(.dark) .statusDoneWithErrors,
+:global(.dark) .statusError {
+  background-color: rgba(127, 29, 29, 0.4);
+  color: #fca5a5;
+}
+</style>

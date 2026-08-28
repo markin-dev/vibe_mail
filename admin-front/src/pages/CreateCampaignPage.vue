@@ -1,10 +1,10 @@
 <template>
   <section
+    :class="$style.createCampaignPage"
     data-test="create-campaign-page"
-    class="flex flex-col gap-6 max-w-2xl"
   >
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-semibold text-foreground">
+    <div :class="$style.headerRow">
+      <h1 :class="$style.title">
         Новая кампания
       </h1>
 
@@ -19,8 +19,8 @@
     </div>
 
     <form
+      :class="$style.form"
       data-test="create-campaign-form"
-      class="flex flex-col gap-4"
       @submit="onSubmit"
     >
       <FormField
@@ -91,7 +91,7 @@
       >
         <LoaderCircle
           v-if="isLoading"
-          class="h-4 w-4 animate-spin"
+          :class="$style.spinner"
         />
 
         {{ isLoading ? 'Создание…' : 'Создать' }}
@@ -157,3 +157,43 @@ function goBack() {
   router.push('/campaigns');
 }
 </script>
+
+<style module>
+.createCampaignPage {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 42rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

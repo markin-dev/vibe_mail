@@ -1,7 +1,7 @@
 <template>
   <SidebarGroup>
     <SidebarGroupContent>
-      <SidebarMenu class="gap-1">
+      <SidebarMenu :class="$style.menu">
         <SidebarMenuItem
           v-for="item in items"
           :key="item.title"
@@ -47,3 +47,9 @@ const route = useRoute();
 
 const isActive = (url: string): boolean => route.path === url;
 </script>
+
+<style module>
+.menu {
+  gap: 0.25rem;
+}
+</style>

@@ -1,10 +1,10 @@
 <template>
-  <div class="flex flex-col gap-4 p-4">
-    <h1 class="text-lg font-semibold">
+  <div :class="$style.testPage">
+    <h1 :class="$style.title">
       Тесты
     </h1>
 
-    <div class="flex flex-wrap gap-2">
+    <div :class="$style.actions">
       <Button
         data-test="toast-success"
         variant="default"
@@ -50,3 +50,24 @@ function onInfo() {
   info();
 }
 </script>
+
+<style module>
+.testPage {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.title {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+</style>

@@ -1,10 +1,10 @@
 <template>
   <section
+    :class="$style.campaignsPage"
     data-test="campaigns-page"
-    class="flex flex-col gap-4"
   >
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-semibold text-foreground">
+    <div :class="$style.headerRow">
+      <h1 :class="$style.title">
         Кампании
       </h1>
 
@@ -18,7 +18,7 @@
       </RouterLink>
     </div>
 
-    <p class="text-muted-foreground">
+    <p :class="$style.subtitle">
       Список кампаний и управление рассылками.
     </p>
 
@@ -41,3 +41,28 @@ const { campaigns, isLoading, getCampaigns: load } = useGetCampaigns();
 
 onMounted(load);
 </script>
+
+<style module>
+.campaignsPage {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.subtitle {
+  color: var(--muted-foreground);
+}
+</style>

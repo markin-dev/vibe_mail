@@ -10,7 +10,7 @@
     <SidebarInset>
       <AppHeader />
 
-      <div class="p-4">
+      <div :class="$style.app">
         <RouterView />
       </div>
     </SidebarInset>
@@ -23,3 +23,9 @@ import AppHeader from '@/components/AppLayout/AppHeader.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 </script>
+
+<style module>
+.app {
+  padding: 1rem;
+}
+</style>

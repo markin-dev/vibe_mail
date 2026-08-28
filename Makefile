@@ -2,7 +2,7 @@
 
 PIPENV := pipenv run
 APP := app.main:app
-DB := vide_mail.db
+DB := vibe_mail.db
 
 install:
 	pipenv install

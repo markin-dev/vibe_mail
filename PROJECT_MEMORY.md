@@ -29,9 +29,9 @@
 - **`.vscode/`:** добавлен в `.gitignore` — пользователь не хочет коммитить настройки
   редактора (каждый настраивает интерпретатор локально).
 - **Фронтенд (админка):** отдельный проект в каталоге `admin-front/` на **Vite 8 +
-  Vue 3.5 + TypeScript 6** (стандартный scaffold `npm create vite` с шаблоном
-  `vue-ts`). Node — **24** (через nvm: `nvm use 24`). Пока это пустой каркас без
-  фич; к нему будет цепляться админка поверх HTTP API бэкенда. Глобальные правила
+  Vue 3.5 + TypeScript ~5.9** (закреплён на 5.x — `openapi-typescript` несовместим с TS 6;
+  стандартный scaffold `npm create vite` с шаблоном `vue-ts`). Node — **24** (через nvm:
+  `nvm use 24`). К нему цепляется админка поверх HTTP API бэкенда. Глобальные правила
   из `~/.claude/CLAUDE.md` про TS/Vue **применяются** к `admin-front/` (в отличие от
   Python-части). Запуск: `cd admin-front && npm install && npm run dev`.
 
@@ -69,8 +69,9 @@ PROJECT_MEMORY.md    # эта память
 
 ## Фронтенд (admin-front) — админка
 - Каталог `admin-front/` — отдельный npm-проект (не зависит от Pipenv/Python).
-- Стек: **Vite 8**, **Vue 3.5** (`<script setup>` + Composition API), **TypeScript 6**
-  (проверка типов через `vue-tsc` в `npm run build`). Node 24 обязателен (nvm).
+- Стек: **Vite 8**, **Vue 3.5** (`<script setup>` + Composition API), **TypeScript ~5.9**
+  (закреплён на 5.x — `openapi-typescript` пока не имеет TS-6-совместимой версии, при TS 6
+  падает `npm install`). Проверка типов через `vue-tsc` в `npm run build`. Node 24 обязателен (nvm).
 - **UI-kit — shadcn-vue**: проинициализирован внутри `admin-front` (`components.json`,
   `src/lib/utils.ts` с `cn()`, алиасы `@/*` → `./src/*`, `ui` → `@/components/ui`).
   Компоненты добавляются как исходники в `src/components/ui` через CLI
@@ -113,6 +114,21 @@ PROJECT_MEMORY.md    # эта память
   Пример: в `AppHeader.vue` удалён мёртвый no-op
   `group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)` (дублировал базовую
   высоту) и добавлен `@utility transition-size`.
+- **Стили наших компонентов → CSS Modules**: все Tailwind-утилиты в проектных `.vue`-файлах
+  (вне `src/components/ui/**`) переписаны на `<style module>` с осмысленными классами
+  (`<div :class="$style.campaignsTable">` и т.п.). Семантические токены shadcn берутся из
+  CSS-переменных (`color: var(--foreground)`, `var(--muted-foreground)`, `var(--destructive)`,
+  `var(--border)`, `var(--radius-md)` и т.п.); цвета статусов-бейджей (синий/жёлтый/зелёный/красный)
+  заданы литералами с тёмной веткой через `:global(.dark) .statusX`. `!important` НЕ используется:
+  в бандле стили SFC-модуля инжектятся **после** глобального Tailwind, поэтому при равной
+  специфичности (0,1,0) наш класс перебивает базовый вариант `Badge` (`bg-primary`) по порядку в
+  каскаде; тёмная ветка имеет специфичность 0,2,0 и побеждает в любом случае. Tailwind
+  по-прежнему нужен для сгенерированных shadcn-компонентов — не убирать.
+- **Правило именования классов**: класс на корневом тэге компонента называется так же, как сам
+  компонент (в camelCase): `CampaignsTable.vue` → `.campaignsTable`, `CampaignDetailsPage.vue` →
+  `.campaignDetailsPage`, `AppHeader.vue` → `.appHeader` и т.д. Внутренние классы (`.headerRow`,
+  `.infoCard`, `.statusNew`, `.skId` и пр.) именуются по смыслу. `SidebarMenu.vue` исключение: его
+  корень — `<SidebarGroup>` без класса, а `:class="$style.menu"` висит на вложенном `<SidebarMenu>`.
 
 ## Прогресс реализации (по шагам)
 - [x] **Шаг 1** — каркас: `app/__init__.py`, `app/core/*` (config, constants, logging);

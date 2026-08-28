@@ -1,24 +1,24 @@
 <template>
   <section
+    :class="$style.campaignDetailsPage"
     data-test="campaign-details-page"
-    class="flex flex-col gap-6"
   >
-    <div class="flex items-start justify-between gap-4">
-      <div class="flex items-center gap-3">
+    <div :class="$style.headerRow">
+      <div :class="$style.titleGroup">
         <Button
           variant="outline"
           size="icon"
           data-test="back-button"
           @click="goBack"
         >
-          <ArrowLeft class="h-4 w-4" />
+          <ArrowLeft :class="$style.iconBtn" />
         </Button>
 
         <div
           v-if="campaign"
-          class="flex items-center gap-3"
+          :class="$style.titleGroup"
         >
-          <h1 class="text-2xl font-semibold text-foreground">
+          <h1 :class="$style.title">
             {{ campaign.name }}
           </h1>
 
@@ -29,7 +29,7 @@
 
         <Skeleton
           v-else-if="isLoadingCampaign"
-          class="h-8 w-64"
+          :class="$style.skTitle"
         />
       </div>
 
@@ -40,7 +40,7 @@
       >
         <LoaderCircle
           v-if="isButtonLoading"
-          class="h-4 w-4 animate-spin"
+          :class="$style.spinner"
         />
 
         {{ buttonLabel }}
@@ -49,48 +49,45 @@
 
     <div
       v-if="campaign"
+      :class="$style.infoCard"
       data-test="campaign-info"
-      class="
-        grid gap-4 rounded-md border p-4
-        sm:grid-cols-2
-      "
     >
       <div>
-        <p class="text-sm text-muted-foreground">
+        <p :class="$style.label">
           Тема
         </p>
 
-        <p class="font-medium">
+        <p :class="$style.value">
           {{ campaign.subject }}
         </p>
       </div>
 
       <div>
-        <p class="text-sm text-muted-foreground">
+        <p :class="$style.label">
           Создана
         </p>
 
-        <p class="font-medium">
+        <p :class="$style.value">
           {{ formatDate(campaign.createdAt) }}
         </p>
       </div>
 
-      <div class="sm:col-span-2">
-        <p class="text-sm text-muted-foreground">
+      <div :class="$style.fullWidth">
+        <p :class="$style.label">
           Текст письма
         </p>
 
-        <p class="whitespace-pre-wrap font-medium">
+        <p :class="$style.body">
           {{ campaign.body }}
         </p>
       </div>
 
-      <div class="sm:col-span-2">
-        <p class="text-sm text-muted-foreground">
+      <div :class="$style.fullWidth">
+        <p :class="$style.label">
           Прогресс
         </p>
 
-        <p class="font-medium">
+        <p :class="$style.value">
           Отправлено: {{ progressTotals.sent }} /
           Всего: {{ progressTotals.total }} /
           Ошибки: {{ progressTotals.failed }} /
@@ -100,11 +97,11 @@
     </div>
 
     <div
+      :class="$style.logCard"
       data-test="recipients-log"
-      class="rounded-md border"
     >
-      <div class="flex items-center gap-2 border-b p-4">
-        <h2 class="text-lg font-semibold">
+      <div :class="$style.logHeader">
+        <h2 :class="$style.logTitle">
           Лог отправленных писем
         </h2>
       </div>
@@ -115,11 +112,11 @@
             <TableHead>Email</TableHead>
             <TableHead>Имя</TableHead>
 
-            <TableHead class="w-25">
+            <TableHead :class="$style.colStatus">
               Статус
             </TableHead>
 
-            <TableHead class="w-200 max-w-200">
+            <TableHead :class="$style.colError">
               Ошибка
             </TableHead>
 
@@ -135,12 +132,12 @@
               :key="n"
               data-test="recipient-skeleton-row"
             >
-              <TableCell><Skeleton class="h-4 w-40" /></TableCell>
-              <TableCell><Skeleton class="h-4 w-32" /></TableCell>
-              <TableCell><Skeleton class="h-5 w-20 rounded-full" /></TableCell>
-              <TableCell><Skeleton class="h-4 w-24" /></TableCell>
-              <TableCell><Skeleton class="h-4 w-24" /></TableCell>
-              <TableCell><Skeleton class="h-4 w-12" /></TableCell>
+              <TableCell><Skeleton :class="$style.skEmail" /></TableCell>
+              <TableCell><Skeleton :class="$style.skName" /></TableCell>
+              <TableCell><Skeleton :class="$style.skStatus" /></TableCell>
+              <TableCell><Skeleton :class="$style.skError" /></TableCell>
+              <TableCell><Skeleton :class="$style.skSent" /></TableCell>
+              <TableCell><Skeleton :class="$style.skAttach" /></TableCell>
             </TableRow>
           </template>
 
@@ -167,17 +164,17 @@
                 </Badge>
               </TableCell>
 
-              <TableCell class="w-200 max-w-200">
+              <TableCell :class="$style.cellError">
                 <TooltipProvider v-if="recipient.error">
                   <Tooltip>
                     <TooltipTrigger as-child>
-                      <span class="block truncate text-destructive">
+                      <span :class="$style.errorText">
                         {{ recipient.error }}
                       </span>
                     </TooltipTrigger>
 
                     <TooltipContent>
-                      <p class="max-w-xs wrap-break-words">
+                      <p :class="$style.tooltipText">
                         {{ recipient.error }}
                       </p>
                     </TooltipContent>
@@ -186,7 +183,7 @@
 
                 <span
                   v-else
-                  class="text-destructive"
+                  :class="$style.errorEmpty"
                 >—</span>
               </TableCell>
 
@@ -204,7 +201,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, useCssModule } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { ArrowLeft, LoaderCircle } from '@lucide/vue';
@@ -233,6 +230,8 @@ import useToast from '@/composables/useToast';
 import type { CampaignStatus } from '@/apiService/campaigns/campaignsApiTypes';
 import type { RecipientStatus } from '@/apiService/recipients/recipientsApiTypes';
 
+const styles = useCssModule();
+
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -246,7 +245,6 @@ const {
 } = useGetCampaign();
 
 const {
-  isLoading: isLoadingRecipients,
   recipients,
   getRecipients,
   onDone: onRecipientsDone,
@@ -262,7 +260,6 @@ onRecipientsError(() => {
 });
 
 const {
-  isLoading: isStarting,
   startCampaign,
   onDone,
 } = useStartCampaign();
@@ -405,11 +402,11 @@ const STATUS_LABEL: Record<CampaignStatus, string> = {
 };
 
 const STATUS_CLASS: Record<CampaignStatus, string> = {
-  new: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  done: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  done_with_errors: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  error: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  new: styles.statusNew,
+  in_progress: styles.statusInProgress,
+  done: styles.statusDone,
+  done_with_errors: styles.statusDoneWithErrors,
+  error: styles.statusError,
 };
 
 function statusLabel(status: CampaignStatus): string {
@@ -427,9 +424,9 @@ const RECIPIENT_STATUS_LABEL: Record<RecipientStatus, string> = {
 };
 
 const RECIPIENT_STATUS_CLASS: Record<RecipientStatus, string> = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300',
-  sent: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  failed: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  pending: styles.recPending,
+  sent: styles.recSent,
+  failed: styles.recFailed,
 };
 
 function recipientStatusLabel(status: RecipientStatus): string {
@@ -454,3 +451,240 @@ function formatDate(value: string): string {
   });
 }
 </script>
+
+<style module>
+.campaignDetailsPage {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.skTitle {
+  height: 2rem;
+  width: 16rem;
+}
+
+.infoCard {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+}
+
+@media (min-width: 640px) {
+  .infoCard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.label {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--muted-foreground);
+}
+
+.value {
+  font-weight: 500;
+}
+
+.body {
+  white-space: pre-wrap;
+  font-weight: 500;
+}
+
+.fullWidth {
+  grid-column: span 2 / span 2;
+}
+
+.logCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.logHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding: 1rem;
+}
+
+.logTitle {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+}
+
+.colStatus {
+  width: 6.25rem;
+}
+
+.colError {
+  width: 50rem;
+  max-width: 50rem;
+}
+
+.cellError {
+  width: 50rem;
+  max-width: 50rem;
+}
+
+.errorText {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--destructive);
+}
+
+.errorEmpty {
+  color: var(--destructive);
+}
+
+.tooltipText {
+  max-width: 20rem;
+  overflow-wrap: break-word;
+}
+
+.iconBtn {
+  width: 1rem;
+  height: 1rem;
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skEmail {
+  height: 1rem;
+  width: 10rem;
+}
+
+.skName {
+  height: 1rem;
+  width: 8rem;
+}
+
+.skStatus {
+  height: 1.25rem;
+  width: 5rem;
+  border-radius: 9999px;
+}
+
+.skError {
+  height: 1rem;
+  width: 6rem;
+}
+
+.skSent {
+  height: 1rem;
+  width: 6rem;
+}
+
+.skAttach {
+  height: 1rem;
+  width: 3rem;
+}
+
+.statusNew {
+  background-color: #dbeafe;
+  color: #1d4ed8;
+}
+
+.statusInProgress {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+.statusDone {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.statusDoneWithErrors,
+.statusError {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+:global(.dark) .statusNew {
+  background-color: rgba(30, 58, 138, 0.4);
+  color: #93c5fd;
+}
+
+:global(.dark) .statusInProgress {
+  background-color: rgba(113, 63, 18, 0.4);
+  color: #fde047;
+}
+
+:global(.dark) .statusDone {
+  background-color: rgba(20, 83, 45, 0.4);
+  color: #86efac;
+}
+
+:global(.dark) .statusDoneWithErrors,
+:global(.dark) .statusError {
+  background-color: rgba(127, 29, 29, 0.4);
+  color: #fca5a5;
+}
+
+.recPending {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+.recSent {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.recFailed {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+:global(.dark) .recPending {
+  background-color: rgba(113, 63, 18, 0.4);
+  color: #fde047;
+}
+
+:global(.dark) .recSent {
+  background-color: rgba(20, 83, 45, 0.4);
+  color: #86efac;
+}
+
+:global(.dark) .recFailed {
+  background-color: rgba(127, 29, 29, 0.4);
+  color: #fca5a5;
+}
+</style>
