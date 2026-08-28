@@ -12,6 +12,10 @@ const adaptRecipient = (recipient: RecipientReadWire): Recipient => ({
   status: recipient.status,
   error: recipient.error ?? null,
   sentAt: recipient.sent_at ?? null,
+  configs: (recipient.configs ?? []).map((config) => ({
+    id: config.id,
+    name: config.name,
+  })),
 });
 
 const listAdapter = {

@@ -89,19 +89,38 @@ def _get_existing_recipients(db: Session, campaign_id: int) -> dict[str, Recipie
     return {r.email.lower(): r for r in recipients}
 
 
+def _new_config_names(names: list[str], known_names: list[str]) -> list[str]:
+    """Имена, которых у получателя ещё нет — в порядке появления, без повторов."""
+    known = set(known_names)
+    result: list[str] = []
+
+    for name in names:
+        if name not in known:
+            known.add(name)
+            result.append(name)
+
+    return result
+
+
 def build_preview(db: Session, campaign_id: int, text: str) -> ImportPreview:
-    """Показывает, что получится при импорте. Ничего не пишет в БД."""
+    """Показывает, что получится при импорте. Ничего не пишет в БД.
+
+    В `configs` попадают только те конфиги, которые реально добавятся: имена, уже
+    заведённые у получателя, показываются отдельно в `existing_configs`.
+    """
     groups, problems = parse_recipients_text(text)
     existing = _get_existing_recipients(db, campaign_id)
 
     preview_groups = []
     for group in groups:
         recipient = existing.get(group.email.lower())
+        existing_configs = [c.name for c in recipient.configs] if recipient else []
+
         preview_groups.append(
             ImportGroup(
                 email=group.email,
-                configs=group.configs,
-                existing_configs=[c.name for c in recipient.configs] if recipient else [],
+                configs=_new_config_names(group.configs, existing_configs),
+                existing_configs=existing_configs,
                 is_existing=recipient is not None,
             )
         )
@@ -110,7 +129,7 @@ def build_preview(db: Session, campaign_id: int, text: str) -> ImportPreview:
         groups=preview_groups,
         problems=problems,
         total_rows=sum(len(g.configs) for g in groups) + len(problems),
-        total_configs=sum(len(g.configs) for g in groups),
+        total_configs=sum(len(g.configs) for g in preview_groups),
     )
 
 
@@ -141,12 +160,7 @@ def import_recipients(db: Session, campaign_id: int, text: str) -> ImportResult:
             db.add(recipient)
             created_recipients += 1
 
-        known = {c.name for c in recipient.configs}
-        new_names: list[str] = []
-        for name in group.configs:
-            if name not in known:
-                known.add(name)
-                new_names.append(name)
+        new_names = _new_config_names(group.configs, [c.name for c in recipient.configs])
         recipient.configs.extend(Config(name=name) for name in new_names)
         created_configs += len(new_names)
 

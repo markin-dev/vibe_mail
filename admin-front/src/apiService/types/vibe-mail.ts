@@ -58,6 +58,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/campaigns/{campaign_id}/recipients/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Recipients Import */
+        post: operations["preview_recipients_import_api_campaigns__campaign_id__recipients_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/campaigns/{campaign_id}/recipients/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Import Recipients */
+        post: operations["import_recipients_api_campaigns__campaign_id__recipients_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/campaigns/{campaign_id}/start": {
         parameters: {
             query?: never;
@@ -175,6 +209,16 @@ export interface components {
          */
         CampaignStatus: "new" | "in_progress" | "done" | "done_with_errors" | "error";
         /**
+         * ConfigRead
+         * @description Ответ: конфиг получателя.
+         */
+        ConfigRead: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /**
          * CreateCampaign
          * @description Тело запроса на создание кампании.
          */
@@ -190,6 +234,102 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * ImportGroup
+         * @description Одно письмо: получатель и конфиги, которые ему уедут.
+         */
+        ImportGroup: {
+            /** Email */
+            email: string;
+            /** Configs */
+            configs: string[];
+            /**
+             * Existing Configs
+             * @default []
+             */
+            existing_configs: string[];
+            /**
+             * Is Existing
+             * @default false
+             */
+            is_existing: boolean;
+        };
+        /**
+         * ImportPreview
+         * @description Предпросмотр импорта: что получится, если сохранить.
+         */
+        ImportPreview: {
+            /** Groups */
+            groups: components["schemas"]["ImportGroup"][];
+            /**
+             * Problems
+             * @default []
+             */
+            problems: components["schemas"]["ImportRowProblem"][];
+            /** Total Rows */
+            total_rows: number;
+            /** Total Configs */
+            total_configs: number;
+        };
+        /**
+         * ImportPreviewEnvelope
+         * @description Обёртка предпросмотра импорта получателей.
+         */
+        ImportPreviewEnvelope: {
+            /**
+             * Status
+             * @default success
+             * @enum {string}
+             */
+            status: "success" | "error";
+            result?: components["schemas"]["ImportPreview"] | null;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * ImportResult
+         * @description Итог импорта.
+         */
+        ImportResult: {
+            /** Created Recipients */
+            created_recipients: number;
+            /** Updated Recipients */
+            updated_recipients: number;
+            /** Created Configs */
+            created_configs: number;
+            /**
+             * Problems
+             * @default []
+             */
+            problems: components["schemas"]["ImportRowProblem"][];
+        };
+        /**
+         * ImportResultEnvelope
+         * @description Обёртка результата импорта получателей.
+         */
+        ImportResultEnvelope: {
+            /**
+             * Status
+             * @default success
+             * @enum {string}
+             */
+            status: "success" | "error";
+            result?: components["schemas"]["ImportResult"] | null;
+            /** Error */
+            error?: string | null;
+        };
+        /**
+         * ImportRowProblem
+         * @description Строка, которую не удалось разобрать.
+         */
+        ImportRowProblem: {
+            /** Line */
+            line: number;
+            /** Raw */
+            raw: string;
+            /** Reason */
+            reason: string;
         };
         /**
          * ListCampaignReadEnvelope
@@ -257,10 +397,15 @@ export interface components {
             email: string;
             /** Name */
             name?: string | null;
+            /**
+             * Configs
+             * @default []
+             */
+            configs: string[];
         };
         /**
          * RecipientRead
-         * @description Ответ: получатель со статусом отправки.
+         * @description Ответ: получатель со статусом отправки и списком конфигов.
          */
         RecipientRead: {
             /** Id */
@@ -276,6 +421,11 @@ export interface components {
             error?: string | null;
             /** Sent At */
             sent_at?: string | null;
+            /**
+             * Configs
+             * @default []
+             */
+            configs: components["schemas"]["ConfigRead"][];
         };
         /**
          * RecipientStatus
@@ -289,6 +439,14 @@ export interface components {
         RecipientsBulk: {
             /** Items */
             items: components["schemas"]["RecipientCreate"][];
+        };
+        /**
+         * RecipientsImportText
+         * @description Тело запроса: вставленный из таблицы текст (две колонки через таб).
+         */
+        RecipientsImportText: {
+            /** Text */
+            text: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -480,6 +638,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ListRecipientReadEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_recipients_import_api_campaigns__campaign_id__recipients_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientsImportText"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreviewEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_recipients_api_campaigns__campaign_id__recipients_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecipientsImportText"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportResultEnvelope"];
                 };
             };
             /** @description Validation Error */

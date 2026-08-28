@@ -33,18 +33,29 @@
         />
       </div>
 
-      <Button
-        :disabled="isButtonDisabled"
-        data-test="start-button"
-        @click="onStart"
-      >
-        <LoaderCircle
-          v-if="isButtonLoading"
-          :class="$style.spinner"
-        />
+      <div :class="$style.actions">
+        <Button
+          :disabled="isAddRecipientsDisabled"
+          variant="outline"
+          data-test="add-recipients-button"
+          @click="openAddRecipients"
+        >
+          Добавить получателей
+        </Button>
 
-        {{ buttonLabel }}
-      </Button>
+        <Button
+          :disabled="isButtonDisabled"
+          data-test="start-button"
+          @click="onStart"
+        >
+          <LoaderCircle
+            v-if="isButtonLoading"
+            :class="$style.spinner"
+          />
+
+          {{ buttonLabel }}
+        </Button>
+      </div>
     </div>
 
     <div
@@ -121,6 +132,7 @@
             </TableHead>
 
             <TableHead>Отправлено</TableHead>
+            <TableHead>Конфиги</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -136,15 +148,16 @@
               <TableCell><Skeleton :class="$style.skStatus" /></TableCell>
               <TableCell><Skeleton :class="$style.skError" /></TableCell>
               <TableCell><Skeleton :class="$style.skSent" /></TableCell>
+              <TableCell><Skeleton :class="$style.skConfigs" /></TableCell>
             </TableRow>
           </template>
 
           <template v-else>
             <TableEmpty
               v-if="recipientsList.length === 0"
-              :colspan="5"
+              :colspan="6"
             >
-              Получатели не найдены
+              Получателей пока нет — добавьте их, вставив список из таблицы
             </TableEmpty>
 
             <TableRow
@@ -188,11 +201,30 @@
               <TableCell>
                 {{ recipient.sentAt ? formatDate(recipient.sentAt) : '—' }}
               </TableCell>
+
+              <TableCell>
+                <span
+                  v-for="config in recipient.configs"
+                  :key="config.id"
+                  :class="$style.configName"
+                  data-test="recipient-config"
+                >
+                  {{ config.name }}
+                </span>
+
+                <span v-if="recipient.configs.length === 0">—</span>
+              </TableCell>
             </TableRow>
           </template>
         </TableBody>
       </Table>
     </div>
+
+    <AddRecipientsDialog
+      v-model:open="isAddRecipientsOpen"
+      :campaign-id="campaignId"
+      @added="load"
+    />
   </section>
 </template>
 
@@ -219,6 +251,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import AddRecipientsDialog from '@/components/AddRecipientsDialog.vue';
 import useGetCampaign from '@/composables/data/useGetCampaign';
 import useGetRecipients from '@/composables/data/useGetRecipients';
 import useStartCampaign from '@/composables/data/useStartCampaign';
@@ -279,6 +312,14 @@ const currentStatus = computed<CampaignStatus>(() => effectiveStatus.value ?? 'n
 const DISABLED_STATUSES: CampaignStatus[] = ['in_progress', 'done', 'done_with_errors', 'error'];
 
 const isCampaignStarted = ref(false);
+
+const isAddRecipientsOpen = ref(false);
+
+const isAddRecipientsDisabled = computed(() => currentStatus.value !== 'new');
+
+function openAddRecipients() {
+  isAddRecipientsOpen.value = true;
+}
 
 const isCompleted = computed(() => DISABLED_STATUSES.includes(currentStatus.value));
 
@@ -475,6 +516,12 @@ function formatDate(value: string): string {
   color: var(--foreground);
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .skTitle {
   height: 2rem;
   width: 16rem;
@@ -605,6 +652,16 @@ function formatDate(value: string): string {
 .skSent {
   height: 1rem;
   width: 6rem;
+}
+
+.skConfigs {
+  height: 1rem;
+  width: 8rem;
+}
+
+.configName {
+  display: block;
+  overflow-wrap: anywhere;
 }
 
 .statusNew {

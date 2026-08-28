@@ -104,7 +104,7 @@
 
           <AlertDialogDescription>
             Кампания «{{ pendingCampaign?.name }}» будет удалена вместе со всеми
-            получателями и вложениями. Действие необратимо.
+            получателями и конфигами. Действие необратимо.
           </AlertDialogDescription>
         </AlertDialogHeader>
 
