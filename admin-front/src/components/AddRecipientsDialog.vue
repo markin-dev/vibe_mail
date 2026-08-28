@@ -8,8 +8,7 @@
         <DialogTitle>Добавить получателей</DialogTitle>
 
         <DialogDescription>
-          Вставьте две колонки из таблицы: имя конфига и почта. Строки с одинаковой
-          почтой уедут одним письмом.
+          {{ description }}
         </DialogDescription>
       </DialogHeader>
 
@@ -18,12 +17,90 @@
         :class="$style.step"
         data-test="input-step"
       >
-        <Textarea
-          v-model="text"
-          :class="$style.textarea"
-          placeholder="Markin_Sergey&#9;shpenator@gmail.com"
-          data-test="recipients-textarea"
-        />
+        <Tabs v-model="mode">
+          <TabsList>
+            <TabsTrigger
+              value="paste"
+              data-test="paste-tab"
+            >
+              Вставить список
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="manual"
+              data-test="manual-tab"
+            >
+              Вручную
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="paste">
+            <Textarea
+              v-model="text"
+              :class="$style.textarea"
+              placeholder="Markin_Sergey&#9;shpenator@gmail.com"
+              data-test="recipients-textarea"
+            />
+          </TabsContent>
+
+          <TabsContent value="manual">
+            <div :class="$style.manualForm">
+              <div :class="$style.field">
+                <label
+                  :class="$style.fieldLabel"
+                  for="manual-email"
+                >
+                  Почта
+                </label>
+
+                <Input
+                  id="manual-email"
+                  v-model="manualEmail"
+                  placeholder="shpenator@gmail.com"
+                  data-test="manual-email-input"
+                />
+              </div>
+
+              <div :class="$style.field">
+                <span :class="$style.fieldLabel">Конфиги</span>
+
+                <div
+                  v-for="(_config, index) in manualConfigs"
+                  :key="index"
+                  :class="$style.configRow"
+                >
+                  <Input
+                    v-model="manualConfigs[index]"
+                    placeholder="Markin_Sergey"
+                    data-test="manual-config-input"
+                    @keydown.enter="addConfigField"
+                  />
+
+                  <Button
+                    :disabled="manualConfigs.length === 1"
+                    variant="outline"
+                    size="icon"
+                    data-test="remove-config-button"
+                    @click="removeConfigField(index)"
+                  >
+                    <X :class="$style.iconBtn" />
+                  </Button>
+                </div>
+
+                <Button
+                  :class="$style.addConfigButton"
+                  variant="outline"
+                  data-test="add-config-button"
+                  @click="addConfigField"
+                >
+                  <Plus :class="$style.iconBtn" />
+
+                  Ещё конфиг
+                </Button>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <div
@@ -116,7 +193,7 @@
             :class="$style.spinner"
           />
 
-          Разобрать
+          {{ parseLabel }}
         </Button>
 
         <template v-else>
@@ -150,9 +227,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import { LoaderCircle } from '@lucide/vue';
+import { LoaderCircle, Plus, X } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -161,6 +239,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import useImportRecipients from '@/composables/data/useImportRecipients';
 import usePreviewRecipientsImport from '@/composables/data/usePreviewRecipientsImport';
@@ -192,10 +276,48 @@ const {
   onDone: onImportDone,
 } = useImportRecipients();
 
+type Mode = 'paste' | 'manual';
+
+const mode = ref<Mode>('paste');
 const text = ref('');
+const manualEmail = ref('');
+const manualConfigs = ref<string[]>(['']);
 const isInputStep = ref(true);
 
-const isPreviewDisabled = computed(() => isPreviewLoading.value || !text.value.trim());
+const isManualMode = computed(() => mode.value === 'manual');
+
+const description = computed(() => (
+  isManualMode.value
+    ? 'Одна почта и её конфиги. Если такая почта уже есть в кампании, конфиги допишутся к ней.'
+    : 'Вставьте две колонки из таблицы: имя конфига и почта. Строки с одинаковой почтой уедут одним письмом.'
+));
+
+const parseLabel = computed(() => (isManualMode.value ? 'Продолжить' : 'Разобрать'));
+
+const filledManualConfigs = computed(
+  () => manualConfigs.value.map((config) => config.trim()).filter(Boolean),
+);
+
+// Обе вкладки шлют на бэк один и тот же формат — две колонки через таб.
+const importText = computed(() => {
+  if (!isManualMode.value) {
+    return text.value;
+  }
+
+  const email = manualEmail.value.trim();
+
+  return filledManualConfigs.value.map((config) => `${config}\t${email}`).join('\n');
+});
+
+const isPreviewDisabled = computed(() => isPreviewLoading.value || !importText.value.trim());
+
+function addConfigField() {
+  manualConfigs.value.push('');
+}
+
+function removeConfigField(index: number) {
+  manualConfigs.value.splice(index, 1);
+}
 
 const isImportDisabled = computed(
   () => isImporting.value || !preview.value || preview.value.groups.length === 0,
@@ -247,14 +369,14 @@ const importLabel = computed(() => {
   }
 
   if (existingCount) {
-    parts.push(`дополнить ${existingCount}`);
+    parts.push(newCount ? `дополнить ${existingCount}` : `Дополнить ${existingCount}`);
   }
 
   return parts.length ? parts.join(' и ') : 'Добавить';
 });
 
 function onParse() {
-  previewRecipientsImport({ campaignId: props.campaignId, text: text.value });
+  previewRecipientsImport({ campaignId: props.campaignId, text: importText.value });
 }
 
 onPreviewDone(() => {
@@ -266,7 +388,7 @@ function goBack() {
 }
 
 function onImport() {
-  importRecipients({ campaignId: props.campaignId, text: text.value });
+  importRecipients({ campaignId: props.campaignId, text: importText.value });
 }
 
 onImportDone(() => {
@@ -292,7 +414,10 @@ onImportDone(() => {
 
 watch(isOpen, (opened) => {
   if (!opened) {
+    mode.value = 'paste';
     text.value = '';
+    manualEmail.value = '';
+    manualConfigs.value = [''];
     isInputStep.value = true;
   }
 });
@@ -311,7 +436,41 @@ watch(isOpen, (opened) => {
   overflow-y: auto;
 }
 
+.manualForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fieldLabel {
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.configRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.addConfigButton {
+  align-self: flex-start;
+}
+
+.iconBtn {
+  width: 1rem;
+  height: 1rem;
+}
+
 .textarea {
+  margin-top: 0.75rem;
   min-height: 14rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
