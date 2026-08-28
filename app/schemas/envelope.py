@@ -15,6 +15,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 from app.schemas.campaign import CampaignRead, MessageOut
+from app.schemas.import_recipients import ImportPreview, ImportResult
 from app.schemas.recipient import RecipientRead
 
 
@@ -49,3 +50,11 @@ class ListRecipientReadEnvelope(ApiEnvelope[list[RecipientRead]]):
 
 class MessageOutEnvelope(ApiEnvelope[MessageOut]):
     """Обёртка служебного сообщения (старт/стоп)."""
+
+
+class ImportPreviewEnvelope(ApiEnvelope[ImportPreview]):
+    """Обёртка предпросмотра импорта получателей."""
+
+
+class ImportResultEnvelope(ApiEnvelope[ImportResult]):
+    """Обёртка результата импорта получателей."""

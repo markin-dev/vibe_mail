@@ -7,13 +7,17 @@ from app.db.models import CampaignStatus
 from app.schemas.campaign import CampaignRead, CreateCampaign, MessageOut
 from app.schemas.envelope import (
     CampaignReadEnvelope,
+    ImportPreviewEnvelope,
+    ImportResultEnvelope,
     ListCampaignReadEnvelope,
     ListRecipientReadEnvelope,
     MessageOutEnvelope,
     ok,
 )
+from app.schemas.import_recipients import RecipientsImportText
 from app.schemas.recipient import RecipientsBulk
 from app.services import campaign_service as cs
+from app.services import import_service as imp
 from app.services import recipient_service as rs
 from app.services.worker import Worker
 
@@ -57,6 +61,29 @@ def add_recipients(campaign_id: int, payload: RecipientsBulk, db: Session = Depe
 def list_recipients(campaign_id: int, db: Session = Depends(get_db)):
     cs.get_campaign(db, campaign_id)
     return ok(rs.get_recipients(db, campaign_id))
+
+
+@router.post(
+    "/{campaign_id}/recipients/preview",
+    response_model=ImportPreviewEnvelope,
+)
+def preview_recipients_import(
+    campaign_id: int, payload: RecipientsImportText, db: Session = Depends(get_db)
+):
+    cs.get_campaign(db, campaign_id)
+    return ok(imp.build_preview(db, campaign_id, payload.text))
+
+
+@router.post(
+    "/{campaign_id}/recipients/import",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ImportResultEnvelope,
+)
+def import_recipients(
+    campaign_id: int, payload: RecipientsImportText, db: Session = Depends(get_db)
+):
+    cs.get_campaign(db, campaign_id)
+    return ok(imp.import_recipients(db, campaign_id, payload.text))
 
 
 @router.post(
