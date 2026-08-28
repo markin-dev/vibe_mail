@@ -1,4 +1,4 @@
-"""ORM-модели: Campaign, Recipient, Attachment."""
+"""ORM-модели: Campaign, Recipient, Config."""
 import datetime
 import enum
 
@@ -61,3 +61,24 @@ class Recipient(Base):
     sent_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     campaign: Mapped["Campaign"] = relationship(back_populates="recipients")
+    configs: Mapped[list["Config"]] = relationship(
+        back_populates="recipient", cascade="all, delete-orphan", order_by="Config.id"
+    )
+
+
+class Config(Base):
+    """Конфиг, который уезжает получателю.
+
+    Пока это только имя: сам файл появится следующей итерацией — в этой же таблице
+    (filename/content/size), поэтому отдельной сущности под файл не заводим.
+    """
+
+    __tablename__ = "configs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    recipient_id: Mapped[int] = mapped_column(
+        ForeignKey("recipients.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(255))
+
+    recipient: Mapped["Recipient"] = relationship(back_populates="configs")

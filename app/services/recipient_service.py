@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.constants import EMAIL_RE
-from app.db.models import Campaign, Recipient, RecipientStatus
+from app.db.models import Campaign, Config, Recipient, RecipientStatus
 from app.schemas.recipient import RecipientCreate
 
 
@@ -38,14 +38,14 @@ def add_recipients(db: Session, campaign_id: int, items: list[RecipientCreate]) 
             problems.append(f"recipients[{idx}]: дубликат адреса {email}")
             continue
         seen.add(key)
-        to_create.append(
-            Recipient(
-                campaign_id=campaign_id,
-                email=email,
-                name=item.name,
-                status=RecipientStatus.PENDING,
-            )
+        recipient = Recipient(
+            campaign_id=campaign_id,
+            email=email,
+            name=item.name,
+            status=RecipientStatus.PENDING,
         )
+        recipient.configs = [Config(name=name) for name in item.configs]
+        to_create.append(recipient)
 
     if problems:
         raise HTTPException(status_code=400, detail={"errors": problems})
@@ -83,5 +83,9 @@ def validate_campaign_ready(db: Session, campaign: Campaign) -> list[str]:
 
     if not recipients:
         problems.append("В кампании нет получателей")
+
+    problems.extend(
+        f"{r.email}: не указано ни одного конфига" for r in recipients if not r.configs
+    )
 
     return problems

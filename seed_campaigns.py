@@ -1,4 +1,4 @@
-"""Сидинг БД: создаёт 15 кампаний и ~40 фейковых получателей.
+"""Сидинг БД: создаёт 15 кампаний и ~40 фейковых получателей с конфигами.
 
 Запуск из корня репозитория:
     pipenv run python seed_campaigns.py
@@ -20,6 +20,7 @@ from app.db.models import (
     Base,
     Campaign,
     CampaignStatus,
+    Config,
     Recipient,
     RecipientStatus,
 )
@@ -41,6 +42,8 @@ FAKE_NAMES: list[str] = [
 ]
 
 FAKE_DOMAINS: list[str] = ["example.com", "test.ru", "mail.org", "vibe.dev"]
+
+FAKE_CONFIG_PREFIXES: list[str] = ["Ivanov_Ivan", "Petrova_Anna", "Sidorov_Pavel", "Root_Olga"]
 
 # Сколько получателей и с какими статусами создаём для каждого статуса кампании.
 RECIPIENT_PLAN: dict[CampaignStatus, tuple[int, list[RecipientStatus]]] = {
@@ -83,15 +86,19 @@ def _build_recipients(status: CampaignStatus, index: int) -> list[Recipient]:
             else None
         )
 
-        recipients.append(
-            Recipient(
-                email=f"user{i}@{random.choice(FAKE_DOMAINS)}",
-                name=random.choice(FAKE_NAMES),
-                status=recipient_status,
-                error=error,
-                sent_at=sent_at,
-            )
+        recipient = Recipient(
+            email=f"user{i}@{random.choice(FAKE_DOMAINS)}",
+            name=random.choice(FAKE_NAMES),
+            status=recipient_status,
+            error=error,
+            sent_at=sent_at,
         )
+        prefix = random.choice(FAKE_CONFIG_PREFIXES)
+        recipient.configs = [
+            Config(name=prefix if n == 0 else f"{prefix}_{n + 1}")
+            for n in range(random.randint(1, 3))
+        ]
+        recipients.append(recipient)
 
     return recipients
 

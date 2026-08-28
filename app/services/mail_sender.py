@@ -2,7 +2,7 @@
 
 Инкапсулирует всю работу с smtplib: подключение (SSL/STARTTLS), сборку
 письма, ретраи с переподключением. Не знает про базу данных — получает
-готовые объекты кампании и получателя.
+готовые объекты кампании и получателя и список имён конфигов.
 """
 from __future__ import annotations
 
@@ -52,8 +52,10 @@ class MailSender:
         log.info("Подключено к %s:%s как %s", host, port, self.settings.SMTP_USER)
         return smtp
 
-    def _build_message(self, campaign: Campaign, recipient: Recipient) -> EmailMessage:
-        """Собирает EmailMessage из данных кампании и получателя."""
+    def _build_message(
+        self, campaign: Campaign, recipient: Recipient, configs: list[str]
+    ) -> EmailMessage:
+        """Собирает EmailMessage: текст кампании плюс имена конфигов столбиком."""
         sender = self.settings.SMTP_USER
         msg = EmailMessage()
         msg["From"] = sender
@@ -63,7 +65,11 @@ class MailSender:
             else recipient.email
         )
         msg["Subject"] = campaign.subject
-        msg.set_content(campaign.body)
+
+        body = campaign.body
+        if configs:
+            body = body + "\n\n" + "\n".join(configs)
+        msg.set_content(body)
 
         return msg
 
@@ -80,13 +86,15 @@ class MailSender:
     # Публичное API
     # ------------------------------------------------------------------ #
 
-    def send(self, campaign: Campaign, recipient: Recipient) -> tuple[bool, str | None]:
+    def send(
+        self, campaign: Campaign, recipient: Recipient, configs: list[str]
+    ) -> tuple[bool, str | None]:
         """Отправляет письмо с ретрами.
 
         Возвращает (успех, текст_ошибки). При постоянной ошибке (5xx, отказ
         получателя/отправителя) возвращает неуспех сразу, без повторов.
         """
-        msg = self._build_message(campaign, recipient)
+        msg = self._build_message(campaign, recipient, configs)
         last_exc: Exception | None = None
 
         for attempt in range(1, self.settings.RETRIES + 1):
