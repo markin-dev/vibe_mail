@@ -59,6 +59,7 @@
 
         <Button
           :disabled="isButtonDisabled"
+          :title="isWaitingConfigs ? 'Сначала сгенерируйте конфиги' : undefined"
           data-test="start-button"
           @click="onStart"
         >
@@ -457,8 +458,14 @@ const isButtonLoading = computed(
   () => isCampaignStarted.value || currentStatus.value === 'in_progress',
 );
 
+// Конфиги уезжают вложениями, поэтому без файлов рассылку не запускаем — бэкенд
+// такой старт всё равно отклонит.
+const isWaitingConfigs = computed(
+  () => configTotals.value.total === 0 || configTotals.value.ready < configTotals.value.total,
+);
+
 const isButtonDisabled = computed(
-  () => isCampaignStarted.value || isCompleted.value,
+  () => isCampaignStarted.value || isCompleted.value || isWaitingConfigs.value,
 );
 
 const buttonLabel = computed(() => {
@@ -466,8 +473,12 @@ const buttonLabel = computed(() => {
     return 'Рассылка запущена';
   }
 
-  if (isButtonDisabled.value) {
+  if (isCompleted.value) {
     return 'Рассылка завершена';
+  }
+
+  if (isWaitingConfigs.value) {
+    return 'Нужны конфиги';
   }
 
   return 'Запустить рассылку';

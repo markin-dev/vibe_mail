@@ -75,8 +75,7 @@ class Worker:
                         for r in pending:
                             if self._stop.is_set():
                                 break
-                            configs = [c.name for c in r.configs]
-                            ok, err = self.mail_sender.send(camp, r, configs)
+                            ok, err = self.mail_sender.send(camp, r, r.configs)
                             r.status = RecipientStatus.SENT if ok else RecipientStatus.FAILED
                             r.error = err
                             r.sent_at = (

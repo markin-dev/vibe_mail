@@ -78,7 +78,9 @@ def get_recipient(db: Session, recipient_id: int) -> Recipient:
 def validate_campaign_ready(db: Session, campaign: Campaign) -> list[str]:
     """Проверяет, готова ли кампания к отправке.
 
-    Возвращает список проблем; пустой список = можно отправлять.
+    Конфиги уезжают вложениями, поэтому письмо без файла отправлять нельзя: пока хоть
+    один конфиг не сгенерирован, старт запрещён. Возвращает список проблем; пустой
+    список = можно отправлять.
     """
     problems: list[str] = []
     recipients = db.query(Recipient).filter_by(campaign_id=campaign.id).all()
@@ -86,8 +88,15 @@ def validate_campaign_ready(db: Session, campaign: Campaign) -> list[str]:
     if not recipients:
         problems.append("В кампании нет получателей")
 
-    problems.extend(
-        f"{r.email}: не указано ни одного конфига" for r in recipients if not r.configs
-    )
+    for recipient in recipients:
+        if not recipient.configs:
+            problems.append(f"{recipient.email}: не указано ни одного конфига")
+            continue
+
+        problems.extend(
+            f"{recipient.email}: конфиг {config.name} ещё не сгенерирован"
+            for config in recipient.configs
+            if config.content is None
+        )
 
     return problems

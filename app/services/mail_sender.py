@@ -1,13 +1,14 @@
 """Отправка писем через SMTP.
 
 Инкапсулирует всю работу с smtplib: подключение (SSL/STARTTLS), сборку
-письма, ретраи с переподключением. Не знает про базу данных — получает
-готовые объекты кампании и получателя и список имён конфигов.
+письма, ретраи с переподключением. Не ходит в базу — получает готовые объекты
+кампании, получателя и его конфигов с уже загруженным содержимым файлов.
 """
 from __future__ import annotations
 
 import contextlib
 import logging
+import mimetypes
 import smtplib
 import ssl
 import time
@@ -17,7 +18,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.core.config import Settings
-    from app.db.models import Campaign, Recipient
+    from app.db.models import Campaign, Config, Recipient
 
 log = logging.getLogger("vibe_mail.mail_sender")
 
@@ -53,9 +54,9 @@ class MailSender:
         return smtp
 
     def _build_message(
-        self, campaign: Campaign, recipient: Recipient, configs: list[str]
+        self, campaign: Campaign, recipient: Recipient, configs: list[Config]
     ) -> EmailMessage:
-        """Собирает EmailMessage: текст кампании плюс имена конфигов столбиком."""
+        """Собирает EmailMessage: текст кампании и файлы конфигов вложениями."""
         sender = self.settings.SMTP_USER
         msg = EmailMessage()
         msg["From"] = sender
@@ -65,11 +66,18 @@ class MailSender:
             else recipient.email
         )
         msg["Subject"] = campaign.subject
+        msg.set_content(campaign.body)
 
-        body = campaign.body
-        if configs:
-            body = body + "\n\n" + "\n".join(configs)
-        msg.set_content(body)
+        for config in configs:
+            if config.content is None:
+                continue
+
+            filename = config.filename or f"{config.name}.conf"
+            ctype, _ = mimetypes.guess_type(filename)
+            maintype, _, subtype = (ctype or "application/octet-stream").partition("/")
+            msg.add_attachment(
+                config.content, maintype=maintype, subtype=subtype, filename=filename
+            )
 
         return msg
 
@@ -87,7 +95,7 @@ class MailSender:
     # ------------------------------------------------------------------ #
 
     def send(
-        self, campaign: Campaign, recipient: Recipient, configs: list[str]
+        self, campaign: Campaign, recipient: Recipient, configs: list[Config]
     ) -> tuple[bool, str | None]:
         """Отправляет письмо с ретрами.
 
