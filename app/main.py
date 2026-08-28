@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import attachments, campaigns, health, recipients
@@ -32,6 +33,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="vibe_mail API", version="0.1.0", lifespan=lifespan)
+
+cors_raw = get_settings().model_dump().get("CORS_ORIGINS") or "http://localhost:5173"
+cors_origins = [origin.strip() for origin in cors_raw.split(",") if origin.strip()] or [
+    "http://localhost:5173"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(HTTPException)

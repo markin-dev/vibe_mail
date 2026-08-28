@@ -134,8 +134,12 @@ make dev                    # = pipenv run uvicorn app.main:app --reload
   (TS/Vue/Composables/тесты/импорты) **применяются**.
 - **Слой API — `src/apiService/`** (фасадная архитектура с адаптерами):
   - `httpClient.ts` — низкоуровневый `fetch`-обёртчик. Базовый URL из `VITE_API_BASE_URL`
-    (по умолчанию `/api`; в dev Vite проксирует `/api` → `http://localhost:8000`, поэтому
-    CORS на бэкенде не нужен). Бросает ошибку при `!response.ok` или `status === 'error'`.
+    (по умолчанию `/api`). Vite-прокси для `/api` **убран**: в dev запросы идут напрямую на
+    бэкенд, заданный через `VITE_API_BASE_URL` (см. `admin-front/.env.example`, обычно
+    `http://localhost:8000/api`), поэтому на бэкенде включён **CORS** через `CORSMiddleware` в
+    `app/main.py` (список разрешённых origin — `CORS_ORIGINS` в `.env`, по умолчанию
+    `["http://localhost:5173"]`); в проде при same-origin CORS не мешает.
+    Бросает ошибку при `!response.ok` или `status === 'error'`.
   - `types/vibe-mail.ts` — **сгенерировано** из бэкенд-`/openapi.json` через
     `openapi-typescript` (скрипт `npm run generate:api`, файл в `.eslintignore`).
     Wire-типы берутся отсюда (`components['schemas']`).

@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     RETRIES: int = 3
     DEFAULT_DELAY: float = 2.0
 
+    # --- CORS (фронт в dev на отдельном порту, Vite :5173) ---
+    # Через запятую; пустое значение (например, пустая env-переменная) — взять умолчание.
+    CORS_ORIGINS: str = "http://localhost:5173"
+
 
 @lru_cache
 def get_settings() -> Settings:
