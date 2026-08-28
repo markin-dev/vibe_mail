@@ -2,6 +2,7 @@ import { request } from '@/apiService/httpClient';
 
 import createCampaignAdapter from './adapters/createCampaignAdapter';
 import deleteCampaignAdapter from './adapters/deleteCampaignAdapter';
+import generateConfigsAdapter from './adapters/generateConfigsAdapter';
 import startCampaignAdapter from './adapters/startCampaignAdapter';
 import campaignsItemAdapter from './adapters/campaignsItemAdapter';
 import campaignsListAdapter from './adapters/campaignsListAdapter';
@@ -11,6 +12,8 @@ import type {
   CreateCampaignResponseWire,
   DeleteCampaignInput,
   DeleteCampaignResponseWire,
+  GenerateConfigsInput,
+  GenerateConfigsResponseWire,
   GetCampaignInput,
   GetCampaignResponseWire,
   ListCampaignsResponseWire,
@@ -75,6 +78,21 @@ export const campaignsApiService = {
     }
 
     return campaignId;
+  },
+
+  generateConfigs: async (input: GenerateConfigsInput): Promise<string> => {
+    const response = await request<GenerateConfigsResponseWire>(
+      'POST',
+      `/campaigns/${input.id}/configs/generate`,
+    );
+
+    const detail = generateConfigsAdapter.adaptResponseData(response);
+
+    if (detail === undefined) {
+      throw new Error('Не удалось запустить генерацию конфигов');
+    }
+
+    return detail;
   },
 };
 

@@ -2,7 +2,7 @@
 import datetime
 import enum
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,6 +25,14 @@ class CampaignStatus(enum.StrEnum):
 class RecipientStatus(enum.StrEnum):
     PENDING = "pending"
     SENT = "sent"
+    FAILED = "failed"
+
+
+class ConfigStatus(enum.StrEnum):
+    PENDING = "pending"        # имя есть, файла ещё нет
+    QUEUED = "queued"          # поставлен в очередь на генерацию
+    GENERATING = "generating"  # воркер взял в работу
+    READY = "ready"
     FAILED = "failed"
 
 
@@ -67,10 +75,11 @@ class Recipient(Base):
 
 
 class Config(Base):
-    """Конфиг, который уезжает получателю.
+    """Конфиг, который уезжает получателю: имя плюс сам файл.
 
-    Пока это только имя: сам файл появится следующей итерацией — в этой же таблице
-    (filename/content/size), поэтому отдельной сущности под файл не заводим.
+    Файл хранится здесь же (`content` — BLOB): конфиги весят единицы килобайт, поэтому
+    отдельной сущности под файл не заводим. Пока имя не сгенерировано, `content` пуст,
+    а статус показывает, на какой стадии конфиг.
     """
 
     __tablename__ = "configs"
@@ -80,5 +89,13 @@ class Config(Base):
         ForeignKey("recipients.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(255))
+    status: Mapped[ConfigStatus] = mapped_column(
+        SAEnum(ConfigStatus), default=ConfigStatus.PENDING
+    )
+    filename: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    content: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    size: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    generated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     recipient: Mapped["Recipient"] = relationship(back_populates="configs")

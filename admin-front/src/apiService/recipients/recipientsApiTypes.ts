@@ -2,9 +2,15 @@ import type { components } from '@/apiService/types/vibe-mail';
 
 export type RecipientStatus = 'pending' | 'sent' | 'failed';
 
+export type ConfigStatus = 'pending' | 'queued' | 'generating' | 'ready' | 'failed';
+
 export interface Config {
   id: number;
   name: string;
+  status: ConfigStatus;
+  filename: string | null;
+  size: number;
+  error: string | null;
 }
 
 export interface Recipient {

@@ -6,12 +6,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import campaigns, health, recipients
+from app.api import campaigns, configs, health, recipients
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.db.base import Base
 from app.db.session import engine
 from app.schemas.envelope import ApiEnvelope
+from app.services.config_worker import ConfigWorker
 from app.services.mail_sender import MailSender
 from app.services.worker import Worker
 
@@ -27,9 +28,14 @@ async def lifespan(app: FastAPI):
     app.state.worker = worker
     worker.start()
 
+    config_worker = ConfigWorker()
+    app.state.config_worker = config_worker
+    config_worker.start()
+
     yield
 
     worker.stop()
+    config_worker.stop()
 
 
 app = FastAPI(title="vibe_mail API", version="0.1.0", lifespan=lifespan)
@@ -74,4 +80,5 @@ async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONRespons
 
 app.include_router(campaigns.router)
 app.include_router(recipients.router)
+app.include_router(configs.router)
 app.include_router(health.router)

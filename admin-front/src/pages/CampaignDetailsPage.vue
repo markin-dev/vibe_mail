@@ -44,6 +44,20 @@
         </Button>
 
         <Button
+          :disabled="isGenerateDisabled"
+          variant="outline"
+          data-test="generate-configs-button"
+          @click="onGenerateConfigs"
+        >
+          <LoaderCircle
+            v-if="isGeneratingConfigs"
+            :class="$style.spinner"
+          />
+
+          {{ generateLabel }}
+        </Button>
+
+        <Button
           :disabled="isButtonDisabled"
           data-test="start-button"
           @click="onStart"
@@ -103,6 +117,22 @@
           Всего: {{ progressTotals.total }} /
           Ошибки: {{ progressTotals.failed }} /
           Ожидают: {{ progressTotals.pending }}
+        </p>
+      </div>
+
+      <div :class="$style.fullWidth">
+        <p :class="$style.label">
+          Конфиги
+        </p>
+
+        <p
+          :class="$style.value"
+          data-test="configs-progress"
+        >
+          Готовы: {{ configTotals.ready }} из {{ configTotals.total }}
+          <template v-if="configTotals.failed">
+            / Ошибки: {{ configTotals.failed }}
+          </template>
         </p>
       </div>
     </div>
@@ -203,14 +233,48 @@
               </TableCell>
 
               <TableCell>
-                <span
+                <div
                   v-for="config in recipient.configs"
                   :key="config.id"
-                  :class="$style.configName"
+                  :class="$style.configRow"
                   data-test="recipient-config"
                 >
-                  {{ config.name }}
-                </span>
+                  <span :class="$style.configName">{{ config.name }}</span>
+
+                  <TooltipProvider v-if="config.error">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <Badge :class="configStatusClass(config.status)">
+                          {{ configStatusLabel(config.status) }}
+                        </Badge>
+                      </TooltipTrigger>
+
+                      <TooltipContent>
+                        <p :class="$style.tooltipText">
+                          {{ config.error }}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+
+                  <Badge
+                    v-else
+                    :class="configStatusClass(config.status)"
+                  >
+                    {{ configStatusLabel(config.status) }}
+                  </Badge>
+
+                  <a
+                    v-if="config.status === 'ready'"
+                    :href="configDownloadUrl(config.id)"
+                    :download="config.filename ?? `${config.name}.conf`"
+                    :class="$style.downloadLink"
+                    :title="`Скачать (${formatSize(config.size)})`"
+                    data-test="config-download-link"
+                  >
+                    <Download :class="$style.iconBtn" />
+                  </a>
+                </div>
 
                 <span v-if="recipient.configs.length === 0">—</span>
               </TableCell>
@@ -232,7 +296,7 @@
 import { computed, onMounted, onUnmounted, ref, watch, useCssModule } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import { ArrowLeft, LoaderCircle } from '@lucide/vue';
+import { ArrowLeft, Download, LoaderCircle } from '@lucide/vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -252,12 +316,17 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import AddRecipientsDialog from '@/components/AddRecipientsDialog.vue';
+import { API_BASE_URL } from '@/apiService/httpClient';
+import useGenerateConfigs from '@/composables/data/useGenerateConfigs';
 import useGetCampaign from '@/composables/data/useGetCampaign';
 import useGetRecipients from '@/composables/data/useGetRecipients';
 import useStartCampaign from '@/composables/data/useStartCampaign';
 import useToast from '@/composables/useToast';
 import type { CampaignStatus } from '@/apiService/campaigns/campaignsApiTypes';
-import type { RecipientStatus } from '@/apiService/recipients/recipientsApiTypes';
+import type {
+  ConfigStatus,
+  RecipientStatus,
+} from '@/apiService/recipients/recipientsApiTypes';
 
 const styles = useCssModule();
 
@@ -305,6 +374,67 @@ const progressTotals = computed(() => {
     total: list.length,
   };
 });
+
+const configs = computed(() => recipientsList.value.flatMap((recipient) => recipient.configs));
+
+const configTotals = computed(() => {
+  const list = configs.value;
+
+  return {
+    ready: list.filter((config) => config.status === 'ready').length,
+    failed: list.filter((config) => config.status === 'failed').length,
+    total: list.length,
+  };
+});
+
+const isGeneratingConfigs = computed(
+  () => configs.value.some((config) => config.status === 'queued' || config.status === 'generating'),
+);
+
+const {
+  generateConfigs,
+  onDone: onGenerateDone,
+} = useGenerateConfigs();
+
+const isGenerateDisabled = computed(
+  () => isGeneratingConfigs.value
+    || configTotals.value.total === 0
+    || configTotals.value.ready === configTotals.value.total,
+);
+
+const generateLabel = computed(() => {
+  if (isGeneratingConfigs.value) {
+    return 'Генерация…';
+  }
+
+  if (configTotals.value.total > 0 && configTotals.value.ready === configTotals.value.total) {
+    return 'Конфиги готовы';
+  }
+
+  return 'Сгенерировать конфиги';
+});
+
+function onGenerateConfigs() {
+  generateConfigs({ id: campaignId.value });
+}
+
+onGenerateDone(() => {
+  toast.success('Генерация конфигов запущена');
+
+  load();
+});
+
+function configDownloadUrl(configId: number): string {
+  return `${API_BASE_URL}/configs/${configId}/download`;
+}
+
+function formatSize(size: number): string {
+  if (size < 1024) {
+    return `${size} Б`;
+  }
+
+  return `${(size / 1024).toFixed(1)} КБ`;
+}
 
 const effectiveStatus = computed(() => campaign.value?.status);
 const currentStatus = computed<CampaignStatus>(() => effectiveStatus.value ?? 'new');
@@ -403,10 +533,14 @@ onDone(() => {
   load();
 });
 
+const isPollingNeeded = computed(
+  () => effectiveStatus.value === 'in_progress' || isGeneratingConfigs.value,
+);
+
 watch(
-  effectiveStatus,
-  (status) => {
-    if (status === 'in_progress') {
+  isPollingNeeded,
+  (needed) => {
+    if (needed) {
       startPolling();
       return;
     }
@@ -472,6 +606,30 @@ function recipientStatusLabel(status: RecipientStatus): string {
 
 function recipientStatusClass(status: RecipientStatus): string {
   return RECIPIENT_STATUS_CLASS[status];
+}
+
+const CONFIG_STATUS_LABEL: Record<ConfigStatus, string> = {
+  pending: 'Нет файла',
+  queued: 'В очереди',
+  generating: 'Генерируется',
+  ready: 'Готов',
+  failed: 'Ошибка',
+};
+
+const CONFIG_STATUS_CLASS: Record<ConfigStatus, string> = {
+  pending: styles.configPending,
+  queued: styles.configQueued,
+  generating: styles.configGenerating,
+  ready: styles.configReady,
+  failed: styles.configFailed,
+};
+
+function configStatusLabel(status: ConfigStatus): string {
+  return CONFIG_STATUS_LABEL[status];
+}
+
+function configStatusClass(status: ConfigStatus): string {
+  return CONFIG_STATUS_CLASS[status];
 }
 
 function formatDate(value: string): string {
@@ -659,9 +817,67 @@ function formatDate(value: string): string {
   width: 8rem;
 }
 
+.configRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.125rem 0;
+}
+
 .configName {
-  display: block;
   overflow-wrap: anywhere;
+}
+
+.downloadLink {
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted-foreground);
+}
+
+.downloadLink:hover {
+  color: var(--foreground);
+}
+
+.configPending {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.configQueued,
+.configGenerating {
+  background-color: #fef9c3;
+  color: #854d0e;
+}
+
+.configReady {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.configFailed {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+:global(.dark) .configPending {
+  background-color: rgba(55, 65, 81, 0.4);
+  color: #d1d5db;
+}
+
+:global(.dark) .configQueued,
+:global(.dark) .configGenerating {
+  background-color: rgba(113, 63, 18, 0.4);
+  color: #fde047;
+}
+
+:global(.dark) .configReady {
+  background-color: rgba(20, 83, 45, 0.4);
+  color: #86efac;
+}
+
+:global(.dark) .configFailed {
+  background-color: rgba(127, 29, 29, 0.4);
+  color: #fca5a5;
 }
 
 .statusNew {

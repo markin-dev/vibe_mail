@@ -92,6 +92,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/campaigns/{campaign_id}/configs/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Configs
+         * @description Ставит в очередь конфиги без файла — генерацию делает фоновый воркер.
+         */
+        post: operations["generate_configs_api_campaigns__campaign_id__configs_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/campaigns/{campaign_id}/start": {
         parameters: {
             query?: never;
@@ -138,6 +158,26 @@ export interface paths {
         post?: never;
         /** Delete Recipient */
         delete: operations["delete_recipient_api_recipients__recipient_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/configs/{config_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Config
+         * @description Отдаёт файл конфига. Ответ бинарный, без обёртки ApiEnvelope.
+         */
+        get: operations["download_config_api_configs__config_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -210,14 +250,29 @@ export interface components {
         CampaignStatus: "new" | "in_progress" | "done" | "done_with_errors" | "error";
         /**
          * ConfigRead
-         * @description Ответ: конфиг получателя.
+         * @description Ответ: конфиг получателя со статусом генерации (без содержимого файла).
          */
         ConfigRead: {
             /** Id */
             id: number;
             /** Name */
             name: string;
+            status: components["schemas"]["ConfigStatus"];
+            /** Filename */
+            filename?: string | null;
+            /**
+             * Size
+             * @default 0
+             */
+            size: number;
+            /** Error */
+            error?: string | null;
         };
+        /**
+         * ConfigStatus
+         * @enum {string}
+         */
+        ConfigStatus: "pending" | "queued" | "generating" | "ready" | "failed";
         /**
          * CreateCampaign
          * @description Тело запроса на создание кампании.
@@ -721,6 +776,37 @@ export interface operations {
             };
         };
     };
+    generate_configs_api_campaigns__campaign_id__configs_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                campaign_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageOutEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     start_campaign_api_campaigns__campaign_id__start_post: {
         parameters: {
             query?: never;
@@ -800,6 +886,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_config_api_configs__config_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                config_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {

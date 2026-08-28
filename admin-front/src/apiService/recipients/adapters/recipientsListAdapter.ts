@@ -15,6 +15,10 @@ const adaptRecipient = (recipient: RecipientReadWire): Recipient => ({
   configs: (recipient.configs ?? []).map((config) => ({
     id: config.id,
     name: config.name,
+    status: config.status,
+    filename: config.filename ?? null,
+    size: config.size ?? 0,
+    error: config.error ?? null,
   })),
 });
 

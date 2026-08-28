@@ -41,8 +41,9 @@ app/
   schemas/           # campaign.py, recipient.py, import_recipients.py,
                      # envelope.py (pydantic-модели + обёртка ApiEnvelope)
   services/          # mail_sender.py (MailSender), recipient_service.py,
-                     # campaign_service.py, import_service.py, worker.py
-  api/               # deps.py, campaigns.py, recipients.py, health.py
+                     # campaign_service.py, import_service.py, config_service.py,
+                     # config_generator.py, worker.py, config_worker.py
+  api/               # deps.py, campaigns.py, recipients.py, configs.py, health.py
 seed_campaigns.py    # фейковые кампании/получатели/конфиги для локальной БД
 Makefile
 Pipfile / Pipfile.lock
@@ -68,6 +69,8 @@ admin-front/src/
 | `GET` | `/api/campaigns/{id}/recipients` | список получателей |
 | `POST` | `/api/campaigns/{id}/recipients/preview` | предпросмотр вставленного списка (dry-run) |
 | `POST` | `/api/campaigns/{id}/recipients/import` | импорт вставленного списка (201, частичный) |
+| `POST` | `/api/campaigns/{id}/configs/generate` | поставить конфиги без файла в очередь на генерацию (202) |
+| `GET` | `/api/configs/{config_id}/download` | скачать файл конфига (бинарный ответ, без конверта) |
 | `POST` | `/api/campaigns/{id}/start` | запуск рассылки (202) |
 | `POST` | `/api/campaigns/{id}/stop` | пауза (статус → NEW) |
 | `DELETE` | `/api/campaigns/{id}` | удалить кампанию (200, MessageOutEnvelope) |
@@ -96,8 +99,15 @@ admin-front/src/
   заблокировала бы весь список). Если почта уже есть в кампании, конфиги дописываются
   существующему получателю; повторное имя конфига не задваивается, поэтому повторный импорт
   того же списка безопасен.
+- **Генерация конфигов**: кнопка на странице кампании только **ставит в очередь** — меняет
+  статус конфигов без файла (`PENDING`/`FAILED`) на `QUEUED` и отдаёт 202. Файлы добывает
+  отдельный фоновый поток `services/config_worker.py`: `QUEUED` → `GENERATING` → `READY`
+  (или `FAILED` с текстом в `error`), коммит после каждого конфига. При старте процесса
+  зависшие `GENERATING` возвращаются в `QUEUED`. Готовые конфиги повторный запуск не
+  трогает — догенерируются только недостающие. Файл лежит в БД (`configs.content`, BLOB).
 - **Тело письма**: текст кампании плюс имена конфигов столбиком (`MailSender._build_message`).
-  Файлов конфигов пока нет.
+  Сгенерированные файлы к письму пока **не прикрепляются**, и их отсутствие не блокирует
+  `start`.
 - **Ретраи**: временные ошибки — до 3 попыток с паузой 2/4/8 с и переподключением
   (`mail_sender._is_temporary`); постоянные — `failed`, рассылка продолжается.
 - **Фоновая отправка**: `start` отдаёт `202`, отправляет отдельный поток
@@ -109,14 +119,18 @@ admin-front/src/
 ## Модули — зоны ответственности
 - `core/config.py` — `Settings` (pydantic-settings), `get_settings()` (кеш).
 - `core/constants.py` — `EMAIL_RE`.
-- `db/*` — ORM: `Campaign`, `Recipient`, `Config` + сессия.
+- `db/*` — ORM: `Campaign`, `Recipient`, `Config` (+ `ConfigStatus`) + сессия.
 - `schemas/*` — pydantic-модели запрос/ответ (`from_attributes=True`).
 - `services/mail_sender.py` — `MailSender`: connect/build/retry; **не знает про БД**.
 - `services/recipient_service.py` — валидация, добавление получателей, готовность.
 - `services/campaign_service.py` — CRUD кампаний (создание/чтение/смена статуса/удаление), прогресс.
 - `services/import_service.py` — разбор вставленного из таблицы списка (единственное место
   парсинга), предпросмотр и импорт получателей.
+- `services/config_service.py` — постановка конфигов кампании в очередь, доступ к конфигу.
+- `services/config_generator.py` — получение файла по имени конфига; **не знает про БД**,
+  как `mail_sender`. Сейчас заглушка со случайным WireGuard-конфигом.
 - `services/worker.py` — фоновый поток отправки.
+- `services/config_worker.py` — фоновый поток генерации конфигов.
 - `api/*` — роутеры FastAPI; `deps.py` даёт `get_db` и `get_worker`.
 
 ## Архитектура бэкенда
@@ -194,9 +208,11 @@ admin-front/src/
   импорт CSV, лимиты размера, легаси-CLI) вырезана из проекта целиком. Вместо неё —
   модель `Config` (`recipient_id` + `name`): пока это только имя конфига, которое уезжает
   в тело письма столбиком.
-- **Файлы конфигов вернутся в ту же таблицу.** Планируется хранить их **в БД** (`filename`,
-  `content` BLOB, `size` в таблице `configs`) — конфиги WireGuard весят единицы килобайт.
-  Поэтому отдельной сущности под файл заводить не нужно.
+- **Файлы конфигов лежат в той же таблице** (`filename`, `content` BLOB, `size` в `configs`) —
+  конфиги WireGuard весят единицы килобайт, отдельная сущность под файл не нужна.
+- **Генерация вынесена в фоновый поток**, потому что реальный источник файлов — SSH к
+  VPN-серверу: 30+ конфигов заблокировали бы HTTP-запрос. Очередь выражена статусом самого
+  конфига, отдельного поля у кампании нет.
 - **Формат вставки жёсткий** — ровно две колонки через таб. Именно так Google Sheets
   кладёт в буфер скопированный диапазон, а textarea принимает plain-text flavor. От
   альтернативных разделителей, третьей колонки, автоопределения порядка колонок и
@@ -212,6 +228,9 @@ admin-front/src/
   остаётся `None` и в `To:` уходит голый адрес.
 
 ## Известные недоделки
+- `services/config_generator.py` — **заглушка**: отдаёт случайный WireGuard-конфиг вместо
+  обращения к VPN-серверу по SSH. Место замены помечено `TODO` в модуле.
+- Сгенерированные файлы не прикрепляются к письму — в теле по-прежнему только имена.
 - Диалог импорта (`AddRecipientsDialog.vue`) закрывается кликом мимо окна и чистит
   textarea — вставленный текст теряется. Отложено осознанно.
 - В `Pipfile` остался `pyyaml` от удалённого легаси-CLI: в `app/` он больше не используется.

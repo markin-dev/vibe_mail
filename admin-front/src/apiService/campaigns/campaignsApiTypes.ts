@@ -48,3 +48,9 @@ export interface StartCampaignInput {
 }
 
 export type StartCampaignResponseWire = components['schemas']['MessageOutEnvelope'];
+
+export interface GenerateConfigsInput {
+  id: number;
+}
+
+export type GenerateConfigsResponseWire = components['schemas']['MessageOutEnvelope'];

@@ -17,6 +17,7 @@ from app.schemas.envelope import (
 from app.schemas.import_recipients import RecipientsImportText
 from app.schemas.recipient import RecipientsBulk
 from app.services import campaign_service as cs
+from app.services import config_service as cfs
 from app.services import import_service as imp
 from app.services import recipient_service as rs
 from app.services.worker import Worker
@@ -84,6 +85,19 @@ def import_recipients(
 ):
     cs.get_campaign(db, campaign_id)
     return ok(imp.import_recipients(db, campaign_id, payload.text))
+
+
+@router.post(
+    "/{campaign_id}/configs/generate",
+    status_code=status.HTTP_202_ACCEPTED,
+    response_model=MessageOutEnvelope,
+)
+def generate_configs(campaign_id: int, db: Session = Depends(get_db)):
+    """Ставит в очередь конфиги без файла — генерацию делает фоновый воркер."""
+    camp = cs.get_campaign(db, campaign_id)
+    queued = cfs.enqueue_campaign_configs(db, camp.id)
+
+    return ok(MessageOut(detail=f"В очереди на генерацию: {queued}", campaign_id=camp.id))
 
 
 @router.post(

@@ -3,14 +3,18 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from app.db.models import RecipientStatus
+from app.db.models import ConfigStatus, RecipientStatus
 
 
 class ConfigRead(BaseModel):
-    """Ответ: конфиг получателя."""
+    """Ответ: конфиг получателя со статусом генерации (без содержимого файла)."""
 
     id: int
     name: str
+    status: ConfigStatus
+    filename: str | None = None
+    size: int = 0
+    error: str | None = None
 
     model_config = {"from_attributes": True}
 
