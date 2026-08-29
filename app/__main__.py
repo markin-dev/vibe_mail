@@ -1,4 +1,5 @@
 """Точка входа приложения: запуск через `python -m app`."""
+
 import argparse
 
 import uvicorn

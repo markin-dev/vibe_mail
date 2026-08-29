@@ -2,6 +2,7 @@
 
 Используем модуль logging, а не print (кроме служебных сводок в API).
 """
+
 import logging
 import sys
 

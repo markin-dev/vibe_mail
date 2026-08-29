@@ -11,6 +11,7 @@
 - у IN_PROGRESS — по 1 PENDING (воркер подхватит при старте и дошлёт);
 - у DONE/ERROR — завершённые/упавшие получатели (история в логе).
 """
+
 import datetime
 import random
 
@@ -75,8 +76,7 @@ def _build_recipients(status: CampaignStatus, index: int) -> list[Recipient]:
 
     for i in range(count):
         recipient_status = (
-            statuses[index % len(statuses)] if len(statuses) > 1
-            else statuses[i % len(statuses)]
+            statuses[index % len(statuses)] if len(statuses) > 1 else statuses[i % len(statuses)]
         )
         is_finished = recipient_status == RecipientStatus.SENT
         sent_at = _days_ago(random.randint(0, 30)) if is_finished else None

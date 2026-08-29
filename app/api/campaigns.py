@@ -1,8 +1,9 @@
 """Роутер кампаний и связанных с ними операций."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, get_worker
+from app.api.deps import get_db
 from app.db.models import CampaignStatus
 from app.schemas.campaign import CampaignRead, CreateCampaign, MessageOut
 from app.schemas.envelope import (
@@ -20,7 +21,6 @@ from app.services import campaign_service as cs
 from app.services import config_service as cfs
 from app.services import import_service as imp
 from app.services import recipient_service as rs
-from app.services.worker import Worker
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
@@ -105,11 +105,7 @@ def generate_configs(campaign_id: int, db: Session = Depends(get_db)):
     status_code=status.HTTP_202_ACCEPTED,
     response_model=MessageOutEnvelope,
 )
-def start_campaign(
-    campaign_id: int,
-    db: Session = Depends(get_db),
-    worker: Worker = Depends(get_worker),
-):
+def start_campaign(campaign_id: int, db: Session = Depends(get_db)):
     camp = cs.get_campaign(db, campaign_id)
     problems = rs.validate_campaign_ready(db, camp)
     if problems:

@@ -10,6 +10,7 @@
 `CampaignReadEnvelope`), чтобы в сгенерированной OpenAPI-схеме были
 стабильные, читаемые имена (generic даёт хешированные суффиксы).
 """
+
 from typing import Literal
 
 from pydantic import BaseModel

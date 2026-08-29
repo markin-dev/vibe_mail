@@ -1,4 +1,5 @@
 """Pydantic-схемы для получателей и их конфигов."""
+
 from datetime import datetime
 
 from pydantic import BaseModel

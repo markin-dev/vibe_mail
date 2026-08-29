@@ -3,6 +3,7 @@
 Одна БД (SQLite) используется и из HTTP-запросов, и из фонового воркера
 в разных потоках, поэтому для SQLite отключаем check_same_thread.
 """
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

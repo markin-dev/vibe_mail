@@ -1,4 +1,5 @@
 """Роутер получателей (удаление)."""
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 

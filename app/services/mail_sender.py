@@ -4,6 +4,7 @@
 письма, ретраи с переподключением. Не ходит в базу — получает готовые объекты
 кампании, получателя и его конфигов с уже загруженным содержимым файлов.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -53,31 +54,36 @@ class MailSender:
         log.info("Подключено к %s:%s как %s", host, port, self.settings.SMTP_USER)
         return smtp
 
+    @staticmethod
+    def _format_to(recipient: Recipient) -> str:
+        """Заголовок To: с именем, если оно есть, иначе голый адрес."""
+        if not recipient.name:
+            return recipient.email
+        return formataddr((recipient.name, recipient.email))
+
+    @staticmethod
+    def _attach_config(msg: EmailMessage, config: Config) -> None:
+        """Кладёт файл конфига вложением, угадывая MIME-тип по имени файла."""
+        filename = config.download_filename
+        ctype, _ = mimetypes.guess_type(filename)
+        maintype, _, subtype = (ctype or "application/octet-stream").partition("/")
+        msg.add_attachment(config.content, maintype=maintype, subtype=subtype, filename=filename)
+
     def _build_message(
         self, campaign: Campaign, recipient: Recipient, configs: list[Config]
     ) -> EmailMessage:
         """Собирает EmailMessage: текст кампании и файлы конфигов вложениями."""
-        sender = self.settings.SMTP_USER
         msg = EmailMessage()
-        msg["From"] = sender
-        msg["To"] = (
-            formataddr((recipient.name, recipient.email))
-            if recipient.name
-            else recipient.email
-        )
+        msg["From"] = self.settings.SMTP_USER
+        msg["To"] = self._format_to(recipient)
         msg["Subject"] = campaign.subject
         msg.set_content(campaign.body)
 
         for config in configs:
-            if config.content is None:
-                continue
-
-            filename = config.filename or f"{config.name}.conf"
-            ctype, _ = mimetypes.guess_type(filename)
-            maintype, _, subtype = (ctype or "application/octet-stream").partition("/")
-            msg.add_attachment(
-                config.content, maintype=maintype, subtype=subtype, filename=filename
-            )
+            # Конфиг без файла пропускаем: до отправки такой кампании дело не дойдёт,
+            # её не пропустит validate_campaign_ready.
+            if config.content is not None:
+                self._attach_config(msg, config)
 
         return msg
 
@@ -94,6 +100,29 @@ class MailSender:
     # Публичное API
     # ------------------------------------------------------------------ #
 
+    def _send_once(self, msg: EmailMessage) -> None:
+        """Одна попытка отправки: соединение, письмо, гарантированное закрытие."""
+        smtp = None
+        try:
+            smtp = self._connect()
+            smtp.send_message(msg)
+        finally:
+            if smtp is not None:
+                with contextlib.suppress(Exception):
+                    smtp.quit()
+
+    def _wait_before_retry(self, exc: Exception, attempt: int) -> None:
+        """Экспоненциальная пауза между попытками: 2, 4, 8 секунд."""
+        delay = 2**attempt
+        log.warning(
+            "Временная ошибка (%s), попытка %d/%d, пауза %d с",
+            exc,
+            attempt,
+            self.settings.RETRIES,
+            delay,
+        )
+        time.sleep(delay)
+
     def send(
         self, campaign: Campaign, recipient: Recipient, configs: list[Config]
     ) -> tuple[bool, str | None]:
@@ -106,25 +135,16 @@ class MailSender:
         last_exc: Exception | None = None
 
         for attempt in range(1, self.settings.RETRIES + 1):
-            smtp = None
             try:
-                smtp = self._connect()
-                smtp.send_message(msg)
-                return (True, None)
+                self._send_once(msg)
             except (smtplib.SMTPRecipientsRefused, smtplib.SMTPSenderRefused) as exc:
                 return (False, str(exc))
             except Exception as exc:  # noqa: BLE001 - развилка по типу ниже
                 last_exc = exc
                 if not self._is_temporary(exc) or attempt == self.settings.RETRIES:
                     return (False, str(exc))
-                log.warning(
-                    "Временная ошибка (%s), попытка %d/%d, пауза %d с",
-                    exc, attempt, self.settings.RETRIES, 2 ** attempt,
-                )
-                time.sleep(2 ** attempt)
-            finally:
-                if smtp is not None:
-                    with contextlib.suppress(Exception):
-                        smtp.quit()
+                self._wait_before_retry(exc, attempt)
+            else:
+                return (True, None)
 
         return (False, str(last_exc) if last_exc else "unknown error")

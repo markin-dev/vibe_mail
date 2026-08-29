@@ -1,4 +1,5 @@
 """Работа с конфигами получателей: постановка в очередь на генерацию, доступ к файлу."""
+
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 

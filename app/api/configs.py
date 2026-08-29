@@ -1,4 +1,5 @@
 """Роутер конфигов (скачивание файла)."""
+
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,7 +19,7 @@ def download_config(config_id: int, db: Session = Depends(get_db)):
     if config.content is None:
         raise HTTPException(status_code=404, detail="Файл конфига ещё не сгенерирован")
 
-    filename = config.filename or f"{config.name}.conf"
+    filename = config.download_filename
 
     return Response(
         content=config.content,

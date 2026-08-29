@@ -1,4 +1,5 @@
 """Pydantic-схемы для кампаний (входные и выходные данные API)."""
+
 from datetime import datetime
 
 from pydantic import BaseModel

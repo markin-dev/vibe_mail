@@ -5,10 +5,12 @@
 MailSender, обновляет статусы в БД. БД — источник правды, поэтому при старте
 процесса «зависшие» in_progress-кампании подхватываются автоматически (возобновление).
 """
+
 import logging
 import threading
-import time
 from datetime import UTC, datetime
+
+from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.db.models import Campaign, CampaignStatus, Recipient, RecipientStatus
@@ -16,6 +18,9 @@ from app.db.session import SessionLocal
 from app.services.mail_sender import MailSender
 
 log = logging.getLogger("vibe_mail.worker")
+
+# Пауза между опросами БД, секунды.
+IDLE_INTERVAL = 1.0
 
 
 class Worker:
@@ -39,58 +44,92 @@ class Worker:
         if self._thread is not None:
             self._thread.join(timeout=30)
 
+    # ------------------------------------------------------------------ #
+    # Цикл
+    # ------------------------------------------------------------------ #
+
     def _loop(self) -> None:
         log.info("Воркер отправки запущен")
         while not self._stop.is_set():
-            try:
-                with SessionLocal() as db:
-                    running = db.query(Campaign).filter_by(status=CampaignStatus.IN_PROGRESS).all()
-                    for camp in running:
-                        pending = (
-                            db.query(Recipient)
-                            .filter_by(campaign_id=camp.id, status=RecipientStatus.PENDING)
-                            .order_by(Recipient.id)
-                            .all()
-                        )
-                        if not pending:
-                            has_failed = (
-                                db.query(Recipient)
-                                .filter_by(campaign_id=camp.id, status=RecipientStatus.FAILED)
-                                .first()
-                                is not None
-                            )
-                            camp.status = (
-                                CampaignStatus.DONE_WITH_ERRORS
-                                if has_failed
-                                else CampaignStatus.DONE
-                            )
-                            db.commit()
-                            log.info(
-                                "Кампания %s завершена (%s)",
-                                camp.id,
-                                "есть ошибки отправки" if has_failed else "все письма обработаны",
-                            )
-                            continue
-
-                        for r in pending:
-                            if self._stop.is_set():
-                                break
-                            ok, err = self.mail_sender.send(camp, r, r.configs)
-                            r.status = RecipientStatus.SENT if ok else RecipientStatus.FAILED
-                            r.error = err
-                            r.sent_at = (
-                                datetime.now(UTC).replace(tzinfo=None) if ok else None
-                            )
-                            db.commit()
-                            if ok:
-                                log.info("[%s] Отправлено: %s", camp.id, r.email)
-                            else:
-                                log.error("[%s] Ошибка для %s: %s", camp.id, r.email, err)
-                            if not self._stop.is_set():
-                                time.sleep(self.settings.DEFAULT_DELAY)
-            except Exception:  # noqa: BLE001 - воркер не должен падать по одной ошибке
-                log.exception("Ошибка в цикле воркера, повтор через секунду")
-
-            if not self._stop.is_set():
-                time.sleep(1)
+            self._tick()
+            self._stop.wait(IDLE_INTERVAL)
         log.info("Воркер отправки остановлен")
+
+    def _tick(self) -> None:
+        """Один проход по всем работающим кампаниям."""
+        try:
+            with SessionLocal() as db:
+                self._process_running_campaigns(db)
+        except Exception:  # воркер не должен падать по одной ошибке
+            log.exception("Ошибка в цикле воркера, повтор через секунду")
+
+    def _process_running_campaigns(self, db: Session) -> None:
+        for campaign in self._running_campaigns(db):
+            if self._stop.is_set():
+                return
+            self._process_campaign(db, campaign)
+
+    def _process_campaign(self, db: Session, campaign: Campaign) -> None:
+        """Отправляет очередную порцию писем кампании либо закрывает её."""
+        pending = self._pending_recipients(db, campaign.id)
+        if not pending:
+            self._finish_campaign(db, campaign)
+            return
+
+        for recipient in pending:
+            if self._stop.is_set():
+                return
+            self._send_one(db, campaign, recipient)
+            # Пауза между письмами; прерывается сразу при остановке воркера.
+            self._stop.wait(self.settings.DEFAULT_DELAY)
+
+    def _finish_campaign(self, db: Session, campaign: Campaign) -> None:
+        """Терминальный статус кампании: DONE либо DONE_WITH_ERRORS, если были падения."""
+        has_failed = self._has_failed(db, campaign.id)
+        campaign.status = CampaignStatus.DONE_WITH_ERRORS if has_failed else CampaignStatus.DONE
+        db.commit()
+        log.info(
+            "Кампания %s завершена (%s)",
+            campaign.id,
+            "есть ошибки отправки" if has_failed else "все письма обработаны",
+        )
+
+    def _send_one(self, db: Session, campaign: Campaign, recipient: Recipient) -> None:
+        """Одно письмо: отправка и фиксация результата в БД."""
+        ok, err = self.mail_sender.send(campaign, recipient, recipient.configs)
+
+        recipient.status = RecipientStatus.SENT if ok else RecipientStatus.FAILED
+        recipient.error = err
+        recipient.sent_at = datetime.now(UTC).replace(tzinfo=None) if ok else None
+        db.commit()
+
+        if ok:
+            log.info("[%s] Отправлено: %s", campaign.id, recipient.email)
+        else:
+            log.error("[%s] Ошибка для %s: %s", campaign.id, recipient.email, err)
+
+    # ------------------------------------------------------------------ #
+    # Запросы
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _running_campaigns(db: Session) -> list[Campaign]:
+        return db.query(Campaign).filter_by(status=CampaignStatus.IN_PROGRESS).all()
+
+    @staticmethod
+    def _pending_recipients(db: Session, campaign_id: int) -> list[Recipient]:
+        return (
+            db.query(Recipient)
+            .filter_by(campaign_id=campaign_id, status=RecipientStatus.PENDING)
+            .order_by(Recipient.id)
+            .all()
+        )
+
+    @staticmethod
+    def _has_failed(db: Session, campaign_id: int) -> bool:
+        return (
+            db.query(Recipient)
+            .filter_by(campaign_id=campaign_id, status=RecipientStatus.FAILED)
+            .first()
+            is not None
+        )

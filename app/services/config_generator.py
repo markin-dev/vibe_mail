@@ -7,6 +7,7 @@
 Модули не знают про БД: получают имя конфига, возвращают готовый файл. Работу с БД делает
 `config_worker`.
 """
+
 from __future__ import annotations
 
 import base64
@@ -33,11 +34,9 @@ class ConfigSourceError(Exception):
 class ConfigSource(Protocol):
     """Общий интерфейс источника: по имени конфига отдаёт (имя файла, содержимое)."""
 
-    def generate(self, name: str) -> tuple[str, bytes]:
-        ...
+    def generate(self, name: str) -> tuple[str, bytes]: ...
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
 
 def _config_filename(name: str) -> str:
@@ -141,48 +140,54 @@ class SshVpnConfigSource:
 
         return out
 
-    def _api(self, path: str, payload: dict | None = None) -> object:
-        """Запрос к API панели через curl на сервере. С payload — POST, иначе GET."""
-        url = f"{self.settings.VPN_API_URL.rstrip('/')}{path}"
-        parts = [
-            "curl", "-sS", "--fail-with-body",
-            "-u", f"{self.settings.VPN_API_USER}:{self.settings.VPN_API_PASSWORD}",
-        ]
+    def _build_curl_command(self, url: str, payload: dict | None) -> str:
+        """Команда curl к панели: с payload — POST с JSON-телом, иначе GET."""
+        auth = f"{self.settings.VPN_API_USER}:{self.settings.VPN_API_PASSWORD}"
+        parts = ["curl", "-sS", "--fail-with-body", "-u", auth]
 
         if payload is not None:
             parts += [
                 "-X", "POST",
                 "-H", "Content-Type: application/json",
                 "-d", json.dumps(payload, ensure_ascii=False),
-            ]
+            ]  # fmt: skip
 
         parts.append(url)
-        raw = self._run(" ".join(shlex.quote(part) for part in parts))
+        return " ".join(shlex.quote(part) for part in parts)
 
+    @staticmethod
+    def _parse_json(raw: str) -> object:
+        """Ответ панели как JSON; иначе — понятная ошибка с куском тела."""
         try:
             return json.loads(raw)
         except json.JSONDecodeError as exc:
             raise ConfigSourceError(f"Панель вернула не JSON: {raw[:200]}") from exc
 
+    def _api(self, path: str, payload: dict | None = None) -> object:
+        """Запрос к API панели через curl на сервере. С payload — POST, иначе GET."""
+        url = f"{self.settings.VPN_API_URL.rstrip('/')}{path}"
+        return self._parse_json(self._run(self._build_curl_command(url, payload)))
+
     # ------------------------------------------------------------------ #
     # Публичное API
     # ------------------------------------------------------------------ #
 
-    def resolve_server_id(self) -> str:
-        """ID сервера панели: из настроек либо единственный существующий."""
-        if self._server_id:
-            return self._server_id
-
-        servers = self._api("/api/servers")
+    @staticmethod
+    def _pick_single_server(servers: object) -> str:
+        """ID единственного сервера панели; иначе — объясняющая ошибка."""
         if not isinstance(servers, list) or not servers:
             raise ConfigSourceError("На панели нет ни одного сервера")
+
         if len(servers) > 1:
             names = ", ".join(f"{s.get('name')} ({s.get('id')})" for s in servers)
-            raise ConfigSourceError(
-                f"На панели несколько серверов, укажите VPN_SERVER_ID: {names}"
-            )
+            raise ConfigSourceError(f"На панели несколько серверов, укажите VPN_SERVER_ID: {names}")
 
-        self._server_id = servers[0]["id"]
+        return servers[0]["id"]
+
+    def resolve_server_id(self) -> str:
+        """ID сервера панели: из настроек либо единственный существующий."""
+        if not self._server_id:
+            self._server_id = self._pick_single_server(self._api("/api/servers"))
         return self._server_id
 
     def list_client_names(self) -> list[str]:
@@ -191,6 +196,14 @@ class SshVpnConfigSource:
             raise ConfigSourceError("Панель вернула неожиданный ответ на список клиентов")
 
         return [client["name"] for client in clients]
+
+    def _create_client(self, server_id: str, name: str) -> str:
+        """Создаёт клиента на панели и возвращает текст его конфига."""
+        response = self._api(f"/api/servers/{server_id}/clients", {"name": name})
+        if not isinstance(response, dict) or not response.get("config"):
+            raise ConfigSourceError(f"Панель не вернула конфиг для {name}: {response}")
+
+        return response["config"]
 
     def generate(self, name: str) -> tuple[str, bytes]:
         """Создаёт клиента на сервере и возвращает его конфиг.
@@ -203,12 +216,10 @@ class SshVpnConfigSource:
         if name in self.list_client_names():
             raise ConfigSourceError(f"Клиент {name} уже есть на VPN-сервере")
 
-        response = self._api(f"/api/servers/{server_id}/clients", {"name": name})
-        if not isinstance(response, dict) or not response.get("config"):
-            raise ConfigSourceError(f"Панель не вернула конфиг для {name}: {response}")
-
+        config = self._create_client(server_id, name)
         log.info("Клиент %s создан на VPN-сервере", name)
-        return (_config_filename(name), response["config"].encode())
+
+        return (_config_filename(name), config.encode())
 
     def close(self) -> None:
         if self._client is not None:

@@ -1,4 +1,5 @@
 """Проверка здоровья приложения."""
+
 from fastapi import APIRouter
 
 router = APIRouter(tags=["health"])

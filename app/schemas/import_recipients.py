@@ -1,4 +1,5 @@
 """Pydantic-схемы импорта получателей из вставленного списка."""
+
 from pydantic import BaseModel
 
 

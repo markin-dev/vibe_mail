@@ -3,6 +3,7 @@
 Читаются из переменных окружения и файла `.env` (через pydantic-settings).
 Пароль SMTP — только здесь (SMTP_PASSWORD), в конфиг не попадает.
 """
+
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

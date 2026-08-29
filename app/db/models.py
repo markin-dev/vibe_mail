@@ -1,4 +1,5 @@
 """ORM-модели: Campaign, Recipient, Config."""
+
 import datetime
 import enum
 
@@ -29,8 +30,8 @@ class RecipientStatus(enum.StrEnum):
 
 
 class ConfigStatus(enum.StrEnum):
-    PENDING = "pending"        # имя есть, файла ещё нет
-    QUEUED = "queued"          # поставлен в очередь на генерацию
+    PENDING = "pending"  # имя есть, файла ещё нет
+    QUEUED = "queued"  # поставлен в очередь на генерацию
     GENERATING = "generating"  # воркер взял в работу
     READY = "ready"
     FAILED = "failed"
@@ -89,9 +90,7 @@ class Config(Base):
         ForeignKey("recipients.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(255))
-    status: Mapped[ConfigStatus] = mapped_column(
-        SAEnum(ConfigStatus), default=ConfigStatus.PENDING
-    )
+    status: Mapped[ConfigStatus] = mapped_column(SAEnum(ConfigStatus), default=ConfigStatus.PENDING)
     filename: Mapped[str | None] = mapped_column(String(512), nullable=True)
     content: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     size: Mapped[int] = mapped_column(Integer, default=0)
@@ -99,3 +98,8 @@ class Config(Base):
     generated_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     recipient: Mapped["Recipient"] = relationship(back_populates="configs")
+
+    @property
+    def download_filename(self) -> str:
+        """Имя файла для отдачи наружу: сгенерированное либо собранное из имени конфига."""
+        return self.filename or f"{self.name}.conf"

@@ -6,6 +6,7 @@
 Именно это Google Sheets кладёт в буфер при копировании диапазона ячеек. Строки
 с одинаковой почтой объединяются в одно письмо с несколькими конфигами.
 """
+
 from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
@@ -21,7 +22,7 @@ from app.services.recipient_service import validate_email
 
 # Невидимые символы, которые приезжают вместе со вставкой из таблиц и ломают
 # проверку адреса: неразрывный пробел, zero-width space, BOM.
-_INVISIBLE = str.maketrans({" ": " ", "​": "", "﻿": ""})
+_INVISIBLE = str.maketrans({"\u00a0": " ", "\u200b": "", "\ufeff": ""})
 
 _EXPECTED_COLUMNS = 2
 
@@ -37,6 +38,64 @@ class ParsedGroup:
     configs: list[str] = field(default_factory=list)
 
 
+@dataclass
+class ParsedRow:
+    """Успешно разобранная строка вставки."""
+
+    config_name: str
+    email: str
+
+
+@dataclass
+class _GroupOutcome:
+    """Что случилось с одной группой при импорте — для подсчёта итогов."""
+
+    is_created: bool
+    is_updated: bool
+    created_configs: int
+
+
+# ---------------------------------------------------------------------- #
+# Разбор текста
+# ---------------------------------------------------------------------- #
+
+
+def _normalize_text(text: str) -> str:
+    """Приводит переводы строк к \\n и вычищает невидимые символы из таблиц."""
+    return text.replace("\r\n", "\n").replace("\r", "\n").translate(_INVISIBLE)
+
+
+def _parse_line(lineno: int, raw_line: str) -> ParsedRow | ImportRowProblem | None:
+    """Разбирает одну строку вставки.
+
+    `None` — пустая строка (пропускаем молча), `ImportRowProblem` — строку принять нельзя,
+    иначе `ParsedRow` с именем конфига и почтой в нижнем регистре.
+    """
+    if not raw_line.strip():
+        return None
+
+    raw = raw_line.strip()
+    cells = [cell.strip() for cell in raw_line.split("\t")]
+
+    if len(cells) != _EXPECTED_COLUMNS:
+        return ImportRowProblem(
+            line=lineno,
+            raw=raw,
+            reason="ожидались две колонки через таб: имя конфига и почта",
+        )
+
+    config_name, email = cells[0], cells[1].lower()
+
+    if not config_name:
+        return ImportRowProblem(line=lineno, raw=raw, reason="не указано имя конфига")
+    if not email:
+        return ImportRowProblem(line=lineno, raw=raw, reason="не указана почта")
+    if not validate_email(email):
+        return ImportRowProblem(line=lineno, raw=raw, reason=f"некорректная почта {email}")
+
+    return ParsedRow(config_name=config_name, email=email)
+
+
 def parse_recipients_text(text: str) -> tuple[list[ParsedGroup], list[ImportRowProblem]]:
     """Разбирает вставленный текст в группы «почта → конфиги» и список проблем.
 
@@ -46,47 +105,27 @@ def parse_recipients_text(text: str) -> tuple[list[ParsedGroup], list[ImportRowP
     Проблемная строка не импортируется, но и не блокирует остальные: возвращается
     отдельным списком с номером строки, исходным текстом и причиной.
     """
-    normalized = text.replace("\r\n", "\n").replace("\r", "\n").translate(_INVISIBLE)
-
     grouped: dict[str, ParsedGroup] = {}
     problems: list[ImportRowProblem] = []
 
-    for lineno, raw_line in enumerate(normalized.split("\n"), start=1):
-        if not raw_line.strip():
+    for lineno, raw_line in enumerate(_normalize_text(text).split("\n"), start=1):
+        row = _parse_line(lineno, raw_line)
+
+        if row is None:
+            continue
+        if isinstance(row, ImportRowProblem):
+            problems.append(row)
             continue
 
-        cells = [cell.strip() for cell in raw_line.split("\t")]
-        raw = raw_line.strip()
-
-        if len(cells) != _EXPECTED_COLUMNS:
-            problems.append(
-                ImportRowProblem(
-                    line=lineno,
-                    raw=raw,
-                    reason="ожидались две колонки через таб: имя конфига и почта",
-                )
-            )
-            continue
-
-        config_name, email = cells[0], cells[1].lower()
-        if not config_name:
-            problems.append(
-                ImportRowProblem(line=lineno, raw=raw, reason="не указано имя конфига")
-            )
-            continue
-        if not email:
-            problems.append(ImportRowProblem(line=lineno, raw=raw, reason="не указана почта"))
-            continue
-        if not validate_email(email):
-            problems.append(
-                ImportRowProblem(line=lineno, raw=raw, reason=f"некорректная почта {email}")
-            )
-            continue
-
-        group = grouped.setdefault(email, ParsedGroup(email=email))
-        group.configs.append(config_name)
+        group = grouped.setdefault(row.email, ParsedGroup(email=row.email))
+        group.configs.append(row.config_name)
 
     return list(grouped.values()), problems
+
+
+# ---------------------------------------------------------------------- #
+# Предпросмотр и импорт
+# ---------------------------------------------------------------------- #
 
 
 def _get_existing_recipients(db: Session, campaign_id: int) -> dict[str, Recipient]:
@@ -108,6 +147,18 @@ def _new_config_names(names: list[str], known_names: list[str]) -> list[str]:
     return result
 
 
+def _build_preview_group(group: ParsedGroup, recipient: Recipient | None) -> ImportGroup:
+    """Одна строка предпросмотра: что реально добавится этому получателю."""
+    existing_configs = [c.name for c in recipient.configs] if recipient else []
+
+    return ImportGroup(
+        email=group.email,
+        configs=_new_config_names(group.configs, existing_configs),
+        existing_configs=existing_configs,
+        is_existing=recipient is not None,
+    )
+
+
 def build_preview(db: Session, campaign_id: int, text: str) -> ImportPreview:
     """Показывает, что получится при импорте. Ничего не пишет в БД.
 
@@ -117,25 +168,39 @@ def build_preview(db: Session, campaign_id: int, text: str) -> ImportPreview:
     groups, problems = parse_recipients_text(text)
     existing = _get_existing_recipients(db, campaign_id)
 
-    preview_groups = []
-    for group in groups:
-        recipient = existing.get(group.email)
-        existing_configs = [c.name for c in recipient.configs] if recipient else []
-
-        preview_groups.append(
-            ImportGroup(
-                email=group.email,
-                configs=_new_config_names(group.configs, existing_configs),
-                existing_configs=existing_configs,
-                is_existing=recipient is not None,
-            )
-        )
+    preview_groups = [_build_preview_group(group, existing.get(group.email)) for group in groups]
 
     return ImportPreview(
         groups=preview_groups,
         problems=problems,
         total_rows=sum(len(g.configs) for g in groups) + len(problems),
         total_configs=sum(len(g.configs) for g in preview_groups),
+    )
+
+
+def _apply_group(
+    db: Session, campaign_id: int, group: ParsedGroup, existing: dict[str, Recipient]
+) -> _GroupOutcome:
+    """Заводит получателя (если нужно) и дописывает ему недостающие конфиги."""
+    recipient = existing.get(group.email)
+    is_created = recipient is None
+
+    if recipient is None:
+        recipient = Recipient(
+            campaign_id=campaign_id,
+            email=group.email,
+            status=RecipientStatus.PENDING,
+        )
+        db.add(recipient)
+
+    new_names = _new_config_names(group.configs, [c.name for c in recipient.configs])
+    recipient.configs.extend(Config(name=name) for name in new_names)
+
+    return _GroupOutcome(
+        is_created=is_created,
+        # id есть только у уже существовавшего получателя (autoflush выключен).
+        is_updated=bool(new_names) and recipient.id is not None,
+        created_configs=len(new_names),
     )
 
 
@@ -150,34 +215,12 @@ def import_recipients(db: Session, campaign_id: int, text: str) -> ImportResult:
     groups, problems = parse_recipients_text(text)
     existing = _get_existing_recipients(db, campaign_id)
 
-    created_recipients = 0
-    updated_recipients = 0
-    created_configs = 0
-
-    for group in groups:
-        recipient = existing.get(group.email)
-
-        if recipient is None:
-            recipient = Recipient(
-                campaign_id=campaign_id,
-                email=group.email,
-                status=RecipientStatus.PENDING,
-            )
-            db.add(recipient)
-            created_recipients += 1
-
-        new_names = _new_config_names(group.configs, [c.name for c in recipient.configs])
-        recipient.configs.extend(Config(name=name) for name in new_names)
-        created_configs += len(new_names)
-
-        if new_names and recipient.id is not None:
-            updated_recipients += 1
-
+    outcomes = [_apply_group(db, campaign_id, group, existing) for group in groups]
     db.commit()
 
     return ImportResult(
-        created_recipients=created_recipients,
-        updated_recipients=updated_recipients,
-        created_configs=created_configs,
+        created_recipients=sum(o.is_created for o in outcomes),
+        updated_recipients=sum(o.is_updated for o in outcomes),
+        created_configs=sum(o.created_configs for o in outcomes),
         problems=problems,
     )

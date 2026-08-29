@@ -1,4 +1,5 @@
 """Точка сборки FastAPI-приложения."""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
@@ -7,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import campaigns, configs, health, recipients
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.logging import setup_logging
 from app.db.base import Base
 from app.db.session import engine
@@ -17,38 +18,45 @@ from app.services.config_worker import ConfigWorker
 from app.services.mail_sender import MailSender
 from app.services.worker import Worker
 
+DEFAULT_CORS_ORIGIN = "http://localhost:5173"
+
+
+def _cors_origins(settings: Settings) -> list[str]:
+    """Список origin из настройки через запятую; пустое значение — умолчание."""
+    raw = settings.CORS_ORIGINS or DEFAULT_CORS_ORIGIN
+    return [origin.strip() for origin in raw.split(",") if origin.strip()] or [DEFAULT_CORS_ORIGIN]
+
+
+def _start_workers(app: FastAPI, settings: Settings) -> None:
+    """Поднимает фоновые потоки отправки и генерации, кладёт их в state приложения."""
+    app.state.worker = Worker(settings, MailSender(settings))
+    app.state.worker.start()
+
+    app.state.config_worker = ConfigWorker(get_config_source(settings))
+    app.state.config_worker.start()
+
+
+def _stop_workers(app: FastAPI) -> None:
+    app.state.worker.stop()
+    app.state.config_worker.stop()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # MVP: создаём таблицы, если их нет (позже заменит Alembic).
     setup_logging()
+    # MVP: создаём таблицы, если их нет (позже заменит Alembic).
     Base.metadata.create_all(engine)
 
-    settings = get_settings()
-    worker = Worker(settings, MailSender(settings))
-    app.state.worker = worker
-    worker.start()
-
-    config_worker = ConfigWorker(get_config_source(settings))
-    app.state.config_worker = config_worker
-    config_worker.start()
-
+    _start_workers(app, get_settings())
     yield
-
-    worker.stop()
-    config_worker.stop()
+    _stop_workers(app)
 
 
 app = FastAPI(title="vibe_mail API", version="0.1.0", lifespan=lifespan)
 
-cors_raw = get_settings().model_dump().get("CORS_ORIGINS") or "http://localhost:5173"
-cors_origins = [origin.strip() for origin in cors_raw.split(",") if origin.strip()] or [
-    "http://localhost:5173"
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=_cors_origins(get_settings()),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -72,10 +80,12 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONResponse:
+async def unhandled_exception_handler(_: Request, _exc: Exception) -> JSONResponse:
     return JSONResponse(
         status_code=500,
-        content=ApiEnvelope(status="error", result=None, error="Внутренняя ошибка сервера").model_dump(),
+        content=ApiEnvelope(
+            status="error", result=None, error="Внутренняя ошибка сервера"
+        ).model_dump(),
     )
 
 

@@ -1,4 +1,5 @@
 """Работа с кампаниями: CRUD, прогресс."""
+
 from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
